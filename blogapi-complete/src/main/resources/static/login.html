@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BlogAPI - Anmeldung</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+<header>
+  <nav>
+    <div class="logo">
+      <i class="fas fa-blog"></i> BlogAPI
+    </div>
+    <ul class="nav-links">
+      <li><a href="index.html">Startseite</a></li>
+      <li><a href="posts.html">Alle Posts</a></li>
+      <li><a href="create.html">Post erstellen</a></li>
+      <li><a href="#" class="current-page">Login</a></li>
+    </ul>
+  </nav>
+</header>
+
+<div class="container">
+  <section class="hero">
+    <h1><i class="fas fa-sign-in-alt"></i> Anmeldung</h1>
+    <p>Melden Sie sich an, um Posts zu verwalten</p>
+  </section>
+
+  <div class="card" style="max-width: 500px; margin: 0 auto;">
+    <form id="loginForm" onsubmit="handleLogin(event)">
+      <div class="form-field">
+        <label for="username">
+          Benutzername <span style="color: red;">*</span>
+        </label>
+        <input
+                type="text"
+                id="username"
+                name="username"
+                required
+                placeholder="Benutzername eingeben"
+                autocomplete="username"
+        >
+        <div id="usernameError" class="error-message"></div>
+      </div>
+
+      <div class="form-field">
+        <label for="password">
+          Passwort <span style="color: red;">*</span>
+        </label>
+        <div style="position: relative;">
+          <input
+                  type="password"
+                  id="password"
+                  name="password"
+                  required
+                  placeholder="Passwort eingeben"
+                  autocomplete="current-password"
+          >
+          <button type="button" onclick="togglePassword()" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #666;">
+            <i id="passwordToggleIcon" class="fas fa-eye"></i>
+          </button>
+        </div>
+        <div id="passwordError" class="error-message"></div>
+      </div>
+
+      <div style="text-align: center; margin-bottom: 1.5rem;">
+        <button type="submit" class="btn" id="loginButton">
+          <i class="fas fa-sign-in-alt"></i> Anmelden
+        </button>
+      </div>
+
+      <div class="info-message">
+        <h4 style="margin-bottom: 0.5rem;"><i class="fas fa-info-circle"></i> Test-Zugangsdaten:</h4>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
+          <div style="background: rgba(102, 126, 234, 0.1); padding: 0.75rem; border-radius: 5px;">
+            <strong>👨‍💼 Administrator</strong><br>
+            <small>Benutzername:</small> <code>Max15</code><br>
+            <small>Passwort:</small> <code>12334</code>
+          </div>
+          <div style="background: rgba(118, 75, 162, 0.1); padding: 0.75rem; border-radius: 5px;">
+            <strong>👤 Benutzer</strong><br>
+            <small>Benutzername:</small> <code>User1</code><br>
+            <small>Passwort:</small> <code>pass123</code>
+          </div>
+        </div>
+      </div>
+    </form>
+
+    <div id="loginStatus" style="display: none;">
+      <!-- Login Status wird hier angezeigt -->
+    </div>
+  </div>
+
+  <!-- Quick Login Buttons -->
+  <div style="max-width: 500px; margin: 2rem auto 0;">
+    <div class="card" style="padding: 1rem;">
+      <h4 style="text-align: center; margin-bottom: 1rem; color: #667eea;">
+        <i class="fas fa-zap"></i> Schnell-Anmeldung
+      </h4>
+      <div style="display: flex; gap: 1rem; justify-content: center;">
+        <button onclick="quickLogin('admin')" class="btn" style="background: linear-gradient(45deg, #28a745, #20c997); flex: 1;">
+          <i class="fas fa-user-shield"></i> Als Admin
+        </button>
+        <button onclick="quickLogin('user')" class="btn" style="background: linear-gradient(45deg, #17a2b8, #6f42c1); flex: 1;">
+          <i class="fas fa-user"></i> Als User
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <p>&copy; 2025 BlogAPI - Entwickelt für LB1 Projekt</p>
+</footer>
+
+<script src="script.js"></script>
+<script>
+  // Check login status on page load
+  document.addEventListener('DOMContentLoaded', function() {
+    checkLoginStatus();
+    setupLoginFormHandlers();
+  });
+
+  function setupLoginFormHandlers() {
+    // Enter key support
+    document.getElementById('password').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        document.getElementById('loginForm').dispatchEvent(new Event('submit'));
+      }
+    });
+  }
+
+  function checkLoginStatus() {
+    const loginStatus = document.getElementById('loginStatus');
+
+    if (currentUser) {
+      loginStatus.innerHTML = `
+                    <div class="success-message">
+                        <h4 style="margin-bottom: 0.5rem;">
+                            <i class="fas fa-check-circle"></i> Erfolgreich angemeldet
+                        </h4>
+                        <p style="margin: 0;">
+                            Benutzer: <strong>${escapeHtml(currentUser.username)}</strong><br>
+                            Rolle: <strong>${currentUser.role === 'admin' ? 'Administrator' : 'Benutzer'}</strong>
+                        </p>
+                        <button onclick="handleLogout()" class="btn" style="margin-top: 1rem; background: linear-gradient(45deg, #dc3545, #e74c3c);">
+                            <i class="fas fa-sign-out-alt"></i> Abmelden
+                        </button>
+                    </div>
+                `;
+      loginStatus.style.display = 'block';
+      document.getElementById('loginForm').style.display = 'none';
+    } else {
+      loginStatus.style.display = 'none';
+      document.getElementById('loginForm').style.display = 'block';
+    }
+  }
+
+  function togglePassword() {
+    const passwordField = document.getElementById('password');
+    const toggleIcon = document.getElementById('passwordToggleIcon');
+
+    if (passwordField.type === 'password') {
+      passwordField.type = 'text';
+      toggleIcon.className = 'fas fa-eye-slash';
+    } else {
+      passwordField.type = 'password';
+      toggleIcon.className = 'fas fa-eye';
+    }
+  }
+
+  function quickLogin(type) {
+    if (type === 'admin') {
+      document.getElementById('username').value = 'Max15';
+      document.getElementById('password').value = '12334';
+    } else {
+      document.getElementById('username').value = 'User1';
+      document.getElementById('password').value = 'pass123';
+    }
+
+    // Trigger form validation and submission
+    document.getElementById('loginForm').dispatchEvent(new Event('submit'));
+  }
+
+  function handleLogin(event) {
+    event.preventDefault();
+
+    const form = event.target;
+    const username = form.username.value.trim();
+    const password = form.password.value.trim();
+    const loginButton = document.getElementById('loginButton');
+
+    // Show loading state
+    loginButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Anmelden...';
+    loginButton.disabled = true;
+
+    // Validierung
+    let isValid = true;
+
+    if (!username) {
+      showError('usernameError', 'Benutzername ist erforderlich');
+      isValid = false;
+    } else if (username.length < 3) {
+      showError('usernameError', 'Benutzername muss mindestens 3 Zeichen haben');
+      isValid = false;
+    } else {
+      hideError('usernameError');
+    }
+
+    if (!password) {
+      showError('passwordError', 'Passwort ist erforderlich');
+      isValid = false;
+    } else if (password.length < 5) {
+      showError('passwordError', 'Passwort muss mindestens 5 Zeichen haben');
+      isValid = false;
+    } else {
+      hideError('passwordError');
+    }
+
+    // Simulate network delay
+    setTimeout(() => {
+      if (isValid) {
+        // Simulierte Benutzer-Authentifizierung
+        if (username === 'Max15' && password === '12334') {
+          currentUser = { id: 1, username: 'Max15', role: 'admin' };
+          showSuccessMessage('Erfolgreich als Administrator angemeldet!');
+          updateNavigationForLogin();
+
+          setTimeout(() => {
+            window.location.href = 'posts.html';
+          }, 1500);
+
+        } else if (username === 'User1' && password === 'pass123') {
+          currentUser = { id: 2, username: 'User1', role: 'user' };
+          showSuccessMessage('Erfolgreich als Benutzer angemeldet!');
+          updateNavigationForLogin();
+
+          setTimeout(() => {
+            window.location.href = 'posts.html';
+          }, 1500);
+
+        } else {
+          showError('passwordError', 'Ungültige Anmeldedaten. Bitte überprüfen Sie Benutzername und Passwort.');
+
+          // Reset button
+          loginButton.innerHTML = '<i class="fas fa-sign-in-alt"></i> Anmelden';
+          loginButton.disabled = false;
+
+          // Shake animation for error
+          form.style.animation = 'shake 0.5s';
+          setTimeout(() => {
+            form.style.animation = '';
+          }, 500);
+        }
+      } else {
+        // Reset button
+        loginButton.innerHTML = '<i class="fas fa-sign-in-alt"></i> Anmelden';
+        loginButton.disabled = false;
+      }
+    }, 500);
+  }
+
+  function handleLogout() {
+    if (confirm('Möchten Sie sich wirklich abmelden?')) {
+      currentUser = null;
+      showSuccessMessage('Sie wurden erfolgreich abgemeldet!');
+
+      setTimeout(() => {
+        window.location.href = 'index.html';
+      }, 1500);
+    }
+  }
+
+  function updateNavigationForLogin() {
+    const nav = document.querySelector('.nav-links');
+    if (nav && currentUser) {
+      nav.innerHTML = `
+                    <li><a href="index.html">Startseite</a></li>
+                    <li><a href="posts.html">Alle Posts</a></li>
+                    <li><a href="create.html">Post erstellen</a></li>
+                    <li><a href="login.html" style="background: #28a745; color: white; border-radius: 20px;">
+                        <i class="fas fa-user"></i> ${escapeHtml(currentUser.username)}
+                    </a></li>
+                `;
+    }
+  }
+
+  // Add shake animation CSS
+  if (!document.getElementById('shake-animation')) {
+    const shakeStyles = `
+                @keyframes shake {
+                    0%, 100% { transform: translateX(0); }
+                    10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+                    20%, 40%, 60%, 80% { transform: translateX(5px); }
+                }
+            `;
+    const styleSheet = document.createElement('style');
+    styleSheet.id = 'shake-animation';
+    styleSheet.textContent = shakeStyles;
+    document.head.appendChild(styleSheet);
+  }
+</script>
+</body>
+</html>

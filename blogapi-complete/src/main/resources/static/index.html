@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BlogAPI - Startseite</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+<header>
+  <nav>
+    <div class="logo">
+      <i class="fas fa-blog"></i> BlogAPI
+    </div>
+    <ul class="nav-links">
+      <li><a href="" class="current-page">Startseite</a></li>
+      <li><a href="javascript:loadPage('posts')">Alle Posts</a></li>
+      <li><a href="javascript:loadPage('create')">Post erstellen</a></li>
+      <li><a href="javascript:loadPage('login')">Login</a></li>
+    </ul>
+  </nav>
+</header>
+
+<div class="container">
+  <div id="content">
+    <section class="hero">
+      <h1><i class="fas fa-blog"></i> Willkommen bei BlogAPI</h1>
+      <p>Ihre moderne Plattform für das Verwalten von Blog-Posts</p>
+    </section>
+
+    <div class="cards">
+      <div class="card">
+        <h3><i class="fas fa-list"></i> Posts anzeigen</h3>
+        <p>Durchsuchen Sie alle verfügbaren Blog-Posts und lesen Sie interessante Inhalte.</p>
+        <a href="javascript:loadPage('posts')" class="btn">Alle Posts ansehen</a>
+      </div>
+
+      <div class="card">
+        <h3><i class="fas fa-plus-circle"></i> Neuen Post erstellen</h3>
+        <p>Erstellen Sie neue Blog-Posts mit Titel, Inhalt und optionalen Bildern.</p>
+        <a href="javascript:loadPage('create')" class="btn">Post erstellen</a>
+      </div>
+
+      <div class="card">
+        <h3><i class="fas fa-user-shield"></i> Admin-Bereich</h3>
+        <p>Verwalten Sie Posts als Administrator - bearbeiten und löschen Sie Inhalte.</p>
+        <a href="javascript:loadPage('login')" class="btn">Anmelden</a>
+      </div>
+    </div>
+
+    <section class="features">
+      <h2><i class="fas fa-star"></i> Features</h2>
+      <div class="feature-list">
+        <div class="feature-item">
+          <i class="fas fa-shield-alt"></i>
+          <h4>Sichere Validierung</h4>
+          <p>Umfassende Eingabevalidierung für alle Formulare</p>
+        </div>
+        <div class="feature-item">
+          <i class="fas fa-image"></i>
+          <h4>Bild-Upload</h4>
+          <p>Unterstützung für JPEG/PNG Bilder bis 5MB</p>
+        </div>
+        <div class="feature-item">
+          <i class="fas fa-mobile-alt"></i>
+          <h4>Responsive Design</h4>
+          <p>Optimiert für alle Geräte und Bildschirmgrößen</p>
+        </div>
+        <div class="feature-item">
+          <i class="fas fa-users"></i>
+          <h4>Benutzerrollen</h4>
+          <p>Unterschiedliche Zugriffsrechte für User und Admins</p>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<footer>
+  <p>&copy; 2025 BlogAPI - Entwickelt für LB1 Projekt</p>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>

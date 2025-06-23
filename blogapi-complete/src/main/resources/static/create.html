@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BlogAPI - Post erstellen</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+<header>
+  <nav>
+    <div class="logo">
+      <i class="fas fa-blog"></i> BlogAPI
+    </div>
+    <ul class="nav-links">
+      <li><a href="index.html">Startseite</a></li>
+      <li><a href="posts.html">Alle Posts</a></li>
+      <li><a href="#" class="current-page">Post erstellen</a></li>
+      <li><a href="login.html">Login</a></li>
+    </ul>
+  </nav>
+</header>
+
+<div class="container">
+  <section class="hero">
+    <h1><i class="fas fa-plus-circle"></i> Neuen Post erstellen</h1>
+    <p>Teilen Sie Ihre Gedanken und Ideen mit der Welt</p>
+  </section>
+
+  <div class="card" style="max-width: 800px; margin: 0 auto;">
+    <form id="createPostForm" onsubmit="handleCreatePost(event)">
+      <div class="form-field">
+        <label for="title">
+          Titel <span style="color: red;">*</span>
+        </label>
+        <input
+                type="text"
+                id="title"
+                name="title"
+                required
+                maxlength="255"
+                placeholder="Geben Sie einen aussagekräftigen Titel ein"
+        >
+        <div id="titleError" class="error-message"></div>
+      </div>
+
+      <div class="form-field">
+        <label for="content">
+          Inhalt <span style="color: red;">*</span>
+        </label>
+        <textarea
+                id="content"
+                name="content"
+                required
+                rows="10"
+                maxlength="5000"
+                placeholder="Schreiben Sie hier Ihren Artikel (mindestens 10 Zeichen, maximal 5000 Zeichen)"
+        ></textarea>
+        <div class="char-counter">
+          <span id="contentCounter">0</span>/5000 Zeichen
+        </div>
+        <div id="contentError" class="error-message"></div>
+      </div>
+
+      <div class="form-field">
+        <label for="image">
+          Bild (optional)
+        </label>
+        <input
+                type="file"
+                id="image"
+                name="image"
+                accept="image/jpeg,image/jpg,image/png"
+        >
+        <div style="color: #666; font-size: 0.9rem; margin-top: 0.25rem;">
+          Erlaubte Formate: JPEG, PNG | Maximale Größe: 5MB
+        </div>
+        <div id="imageError" class="error-message"></div>
+
+        <!-- Image Preview -->
+        <div id="imagePreview" style="display: none; margin-top: 1rem;">
+          <img id="previewImg" style="max-width: 200px; height: auto; border-radius: 5px;" alt="Vorschau">
+          <button type="button" onclick="removeImage()" style="display: block; margin-top: 0.5rem; background: #dc3545; color: white; border: none; padding: 0.25rem 0.5rem; border-radius: 3px; cursor: pointer;">
+            <i class="fas fa-times"></i> Bild entfernen
+          </button>
+        </div>
+      </div>
+
+      <div style="text-align: center;">
+        <button type="submit" class="btn" style="margin-right: 1rem;">
+          <i class="fas fa-save"></i> Post erstellen
+        </button>
+        <a href="posts.html" class="btn" style="background: linear-gradient(45deg, #6c757d, #5a6268);">
+          <i class="fas fa-times"></i> Abbrechen
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<footer>
+  <p>&copy; 2025 BlogAPI - Entwickelt für LB1 Projekt</p>
+</footer>
+
+<script src="script.js"></script>
+<script>
+  // Setup form handlers beim Laden der Seite
+  document.addEventListener('DOMContentLoaded', function() {
+    setupCreateFormHandlers();
+  });
+</script>
+</body>
+</html>

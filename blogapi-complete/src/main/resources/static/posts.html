@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BlogAPI - Alle Posts</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+<header>
+  <nav>
+    <div class="logo">
+      <i class="fas fa-blog"></i> BlogAPI
+    </div>
+    <ul class="nav-links">
+      <li><a href="index.html">Startseite</a></li>
+      <li><a href="#" class="current-page">Alle Posts</a></li>
+      <li><a href="create.html">Post erstellen</a></li>
+      <li><a href="login.html">Login</a></li>
+    </ul>
+  </nav>
+</header>
+
+<div class="container">
+  <section class="hero">
+    <h1><i class="fas fa-list"></i> Alle Blog-Posts</h1>
+    <p>Entdecken Sie interessante Artikel und Beiträge</p>
+  </section>
+
+  <div id="posts-container" class="cards">
+    <!-- Posts werden hier dynamisch geladen -->
+  </div>
+
+  <div style="text-align: center; margin-top: 2rem;">
+    <a href="create.html" class="btn">
+      <i class="fas fa-plus"></i> Neuen Post erstellen
+    </a>
+  </div>
+</div>
+
+<footer>
+  <p>&copy; 2025 BlogAPI - Entwickelt für LB1 Projekt</p>
+</footer>
+
+<script src="script.js"></script>
+<script>
+  // Lade Posts beim Seitenaufruf
+  document.addEventListener('DOMContentLoaded', function() {
+    loadPostsOnPage();
+  });
+
+  function loadPostsOnPage() {
+    const container = document.getElementById('posts-container');
+    if (!container) return;
+
+    let postsHtml = '';
+    posts.forEach(post => {
+      postsHtml += `
+                    <div class="card">
+                        <h3>${escapeHtml(post.title)}</h3>
+                        <p>${escapeHtml(post.content.substring(0, 150))}${post.content.length > 150 ? '...' : ''}</p>
+                        <a href="post.html?id=${post.id}" class="btn">Vollständig lesen</a>
+                        ${currentUser && currentUser.role === 'admin' ? `
+                            <a href="edit.html?id=${post.id}" class="btn" style="margin-left: 10px; background: linear-gradient(45deg, #28a745, #20c997);">Bearbeiten</a>
+                            <button onclick="deletePostById(${post.id})" class="btn" style="margin-left: 10px; background: linear-gradient(45deg, #dc3545, #e74c3c);">Löschen</button>
+                        ` : ''}
+                    </div>
+                `;
+    });
+
+    container.innerHTML = postsHtml;
+  }
+
+  function deletePostById(postId) {
+    if (confirm('Sind Sie sicher, dass Sie diesen Post löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.')) {
+      const postIndex = posts.findIndex(p => p.id === postId);
+      if (postIndex !== -1) {
+        posts.splice(postIndex, 1);
+        showSuccessMessage('Post wurde erfolgreich gelöscht!');
+        setTimeout(() => loadPostsOnPage(), 1000);
+      }
+    }
+  }
+</script>
+</body>
+</html>

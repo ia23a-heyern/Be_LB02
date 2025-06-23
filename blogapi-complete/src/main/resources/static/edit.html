@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BlogAPI - Post bearbeiten</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+<header>
+  <nav>
+    <div class="logo">
+      <i class="fas fa-blog"></i> BlogAPI
+    </div>
+    <ul class="nav-links">
+      <li><a href="index.html">Startseite</a></li>
+      <li><a href="posts.html">Alle Posts</a></li>
+      <li><a href="create.html">Post erstellen</a></li>
+      <li><a href="login.html">Login</a></li>
+    </ul>
+  </nav>
+</header>
+
+<div class="container">
+  <section class="hero">
+    <h1><i class="fas fa-edit"></i> Post bearbeiten</h1>
+    <p>Bearbeiten Sie den ausgewählten Blog-Post</p>
+  </section>
+
+  <div id="edit-content">
+    <!-- Content wird hier geladen -->
+  </div>
+</div>
+
+<footer>
+  <p>&copy; 2025 BlogAPI - Entwickelt für LB1 Projekt</p>
+</footer>
+
+<script src="script.js"></script>
+<script>
+  let currentPostId = null;
+
+  document.addEventListener('DOMContentLoaded', function() {
+    checkAdminAccess();
+    loadEditForm();
+  });
+
+  function checkAdminAccess() {
+    if (!currentUser || currentUser.role !== 'admin') {
+      document.getElementById('edit-content').innerHTML = `
+                    <div class="card" style="max-width: 600px; margin: 0 auto; text-align: center; padding: 3rem;">
+                        <i class="fas fa-lock" style="font-size: 3rem; color: #dc3545; margin-bottom: 1rem;"></i>
+                        <h2 style="color: #dc3545; margin-bottom: 1rem;">Zugriff verweigert</h2>
+                        <p style="margin-bottom: 2rem; color: #666;">
+                            Sie benötigen Administrator-Rechte, um Posts zu bearbeiten.
+                        </p>
+                        <div style="display: flex; gap: 1rem; justify-content: center;">
+                            <a href="login.html" class="btn">
+                                <i class="fas fa-sign-in-alt"></i> Anmelden
+                            </a>
+                            <a href="posts.html" class="btn" style="background: linear-gradient(45deg, #6c757d, #5a6268);">
+                                <i class="fas fa-arrow-left"></i> Zurück
+                            </a>
+                        </div>
+                    </div>
+                `;
+      return false;
+    }
+    return true;
+  }
+
+  function loadEditForm() {
+    if (!checkAdminAccess()) return;
+
+    // Get post ID from URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const postId = parseInt(urlParams.get('id'));
+
+    if (!postId) {
+      showErrorPage('Keine Post-ID angegeben');
+      return;
+    }
+
+    const post = posts.find(p => p.id === postId);
+
+    if (!post) {
+      showErrorPage(`Post mit ID ${postId} nicht gefunden`);
+      return;
+    }
+
+    currentPostId = postId;
+
+    // Update page title
+    document.title = `BlogAPI - Bearbeiten: ${post.title}`;
+
+    document.getElementById('edit-content').innerHTML = `
+                <div class="card" style="max-width: 800px; margin: 0 auto;">
+                    <div style="margin-bottom: 2rem; padding: 1rem; background: rgba(102, 126, 234, 0.1); border-radius: 10px; border-left: 4px solid #667eea;">
+                        <h3 style="margin: 0 0 0.5rem 0; color: #667eea;">
+                            <i class="fas fa-info-circle"></i> Post wird bearbeitet
+                        </h3>
+                        <p style="margin: 0; color: #666;">
+                            <strong>Post ID:</strong> ${post.id} |
+                            <strong>Erstellt:</strong> ${formatDate(new Date())} |
+                            <strong>Aktuelle Länge:</strong> ${post.content.length} Zeichen
+                        </p>
+                    </div>
+
+                    <form id="editPostForm" onsubmit="handleUpdatePost(event, ${postId})">
+                        <div class="form-field">
+                            <label for="editTitle">
+                                Titel <span style="color: red;">*</span>
+                            </label>
+                            <input
+                                type="text"
+                                id="editTitle"
+                                name="title"
+                                required
+                                value="${escapeHtml(post.title)}"
+                                maxlength="255"
+                                placeholder="Geben Sie einen aussagekräftigen Titel ein"
+                            >
+                            <div style="color: #666; font-size: 0.9rem; margin-top: 0.25rem;">
+                                <span id="titleCounter">${post.title.length}</span>/255 Zeichen
+                            </div>
+                            <div id="editTitleError" class="error-message"></div>
+                        </div>
+
+                        <div class="form-field">
+                            <label for="editContent">
+                                Inhalt <span style="color: red;">*</span>
+                            </label>
+                            <textarea
+                                id="editContent"
+                                name="content"
+                                required
+                                rows="12"
+                                maxlength="5000"
+                                placeholder="Schreiben Sie hier Ihren Artikel (mindestens 10 Zeichen, maximal 5000 Zeichen)"
+                            >${escapeHtml(post.content)}</textarea>
+                            <div class="char-counter">
+                                <span id="editContentCounter">${post.content.length}</span>/5000 Zeichen
+                                <span id="wordsCounter" style="margin-left: 1rem;">${countWords(post.content)} Wörter</span>
+                            </div>
+                            <div id="editContentError" class="error-message"></div>
+                        </div>
+
+                        <div class="form-field">
+                            <label for="editImage">
+                                Bild aktualisieren (optional)
+                            </label>
+
+                            ${post.image_path ? `
+                                <div id="currentImage" style="margin-bottom: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 8px; border: 2px dashed #dee2e6;">
+                                    <div style="display: flex; align-items: center; gap: 1rem;">
+                                        <img src="${post.image_path}" alt="Aktuelles Bild" style="width: 100px; height: 100px; object-fit: cover; border-radius: 8px;">
+                                        <div style="flex: 1;">
+                                            <h5 style="margin: 0 0 0.5rem 0; color: #495057;">Aktuelles Bild</h5>
+                                            <p style="margin: 0; color: #6c757d; font-size: 0.9rem;">Wählen Sie eine neue Datei, um das Bild zu ersetzen</p>
+                                            <button type="button" onclick="removeCurrentImage()" style="margin-top: 0.5rem; background: #dc3545; color: white; border: none; padding: 0.25rem 0.75rem; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">
+                                                <i class="fas fa-trash"></i> Bild entfernen
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ` : `
+                                <div style="margin-bottom: 1rem; padding: 1rem; background: #e7f3ff; border-radius: 8px; border-left: 4px solid #2196F3;">
+                                    <p style="margin: 0; color: #1976D2; font-size: 0.9rem;">
+                                        <i class="fas fa-info-circle"></i> Dieser Post hat noch kein Bild. Sie können hier eines hinzufügen.
+                                    </p>
+                                </div>
+                            `}
+
+                            <input
+                                type="file"
+                                id="editImage"
+                                name="image"
+                                accept="image/jpeg,image/jpg,image/png"
+                            >
+                            <div style="color: #666; font-size: 0.9rem; margin-top: 0.25rem;">
+                                Erlaubte Formate: JPEG, PNG | Maximale Größe: 5MB
+                            </div>
+                            <div id="editImageError" class="error-message"></div>
+
+                            <!-- New Image Preview -->
+                            <div id="newImagePreview" style="display: none; margin-top: 1rem;">
+                                <h5 style="color: #28a745; margin-bottom: 0.5rem;">
+                                    <i class="fas fa-image"></i> Neues Bild (Vorschau)
+                                </h5>
+                                <img id="newPreviewImg" style="max-width: 200px; height: auto; border-radius: 8px; border: 2px solid #28a745;" alt="Neue Bild Vorschau">
+                                <button type="button" onclick="removeNewImage()" style="display: block; margin-top: 0.5rem; background: #dc3545; color: white; border: none; padding: 0.25rem 0.5rem; border-radius: 3px; cursor: pointer; font-size: 0.8rem;">
+                                    <i class="fas fa-times"></i> Neues Bild entfernen
+                                </button>
+                            </div>
+                        </div>
+
+                        <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 1rem; margin: 2rem 0;">
+                            <h5 style="color: #856404; margin: 0 0 0.5rem 0;">
+                                <i class="fas fa-exclamation-triangle"></i> Wichtige Hinweise
+                            </h5>
+                            <ul style="margin: 0; padding-left: 1.5rem; color: #856404; font-size: 0.9rem;">
+                                <li>Alle Änderungen werden sofort gespeichert</li>
+                                <li>Das ursprüngliche Erstellungsdatum bleibt erhalten</li>
+                                <li>Bei Bildaustausch wird das alte Bild ersetzt</li>
+                                <li>Verwenden Sie die Vorschau, um Ihre Änderungen zu prüfen</li>
+                            </ul>
+                        </div>
+
+                        <div style="text-align: center; display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+                            <button type="submit" class="btn" id="saveButton" style="min-width: 150px;">
+                                <i class="fas fa-save"></i> Änderungen speichern
+                            </button>
+                            <button type="button" onclick="previewChanges()" class="btn" style="background: linear-gradient(45deg, #17a2b8, #6f42c1); min-width: 150px;">
+                                <i class="fas fa-eye"></i> Vorschau
+                            </button>
+                            <a href="post.html?id=${postId}" class="btn" style="background: linear-gradient(45deg, #6c757d, #5a6268); min-width: 150px;">
+                                <i class="fas fa-times"></i> Abbrechen
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            `;
+
+    setupEditFormHandlers();
+  }
+
+  function setupEditFormHandlers() {
+    // Title counter
+    const titleField = document.getElementById('editTitle');
+    if (titleField) {
+      titleField.addEventListener('input', function() {
+        const counter = document.getElementById('titleCounter');
+        if (counter) {
+          counter.textContent = this.value.length;
+          if (this.value.length > 230) {
+            counter.style.color = '#dc3545';
+          } else if (this.value.length > 200) {
+            counter.style.color = '#ffc107';
+          } else {
+            counter.style.color = '#666';
+          }
+        }
+      });
+    }
+
+    // Content counter
+    const contentField = document.getElementById('editContent');
+    if (contentField) {
+      contentField.addEventListener('input', function() {
+        const counter = document.getElementById('editContentCounter');
+        const wordsCounter = document.getElementById('wordsCounter');
+
+        if (counter) {
+          counter.textContent = this.value.length;
+          if (this.value.length > 4500) {
+            counter.style.color = '#dc3545';
+          } else if (this.value.length > 4000) {
+            counter.style.color = '#ffc107';
+          } else {
+            counter.style.color = '#666';
+          }
+        }
+
+        if (wordsCounter) {
+          wordsCounter.textContent = countWords(this.value) + ' Wörter';
+        }
+      });
+    }
+
+    // Image preview for new image
+    const imageField = document.getElementById('editImage');
+    if (imageField) {
+      imageField.addEventListener('change', function() {
+        handleNewImagePreview(this);
+      });
+    }
+  }
+
+  function handleNewImagePreview(input) {
+    const file = input.files[0];
+    const preview = document.getElementById('newImagePreview');
+    const previewImg = document.getElementById('newPreviewImg');
+
+    if (file) {
+      // Validierung
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+      const maxSize = 5 * 1024 * 1024; // 5MB
+
+      if (!allowedTypes.includes(file.type)) {
+        showError('editImageError', 'Nur JPEG und PNG Dateien sind erlaubt');
+        input.value = '';
+        preview.style.display = 'none';
+        return;
+      }
+
+      if (file.size > maxSize) {
+        showError('editImageError', 'Datei ist zu groß (max. 5MB)');
+        input.value = '';
+        preview.style.display = 'none';
+        return;
+      }
+
+      hideError('editImageError');
+
+      // Preview anzeigen
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        previewImg.src = e.target.result;
+        preview.style.display = 'block';
+      };
+      reader.readAsDataURL(file);
+    } else {
+      preview.style.display = 'none';
+    }
+  }
+
+  function removeCurrentImage() {
+    if (confirm('Möchten Sie das aktuelle Bild wirklich entfernen?')) {
+      const post = posts.find(p => p.id === currentPostId);
+      if (post) {
+        post.image_path = null;
+        document.getElementById('currentImage').style.display = 'none';
+        showSuccessMessage('Aktuelles Bild wurde entfernt');
+      }
+    }
+  }
+
+  function removeNewImage() {
+    const imageField = document.getElementById('editImage');
+    const preview = document.getElementById('newImagePreview');
+
+    imageField.value = '';
+    preview.style.display = 'none';
+    hideError('editImageError');
+  }
+
+  function previewChanges() {
+    const title = document.getElementById('editTitle').value.trim();
+    const content = document.getElementById('editContent').value.trim();
+
+    if (!title || !content) {
+      alert('Bitte füllen Sie Titel und Inhalt aus, um eine Vorschau zu sehen.');
+      return;
+    }
+
+    // Open preview in new window
+    const previewWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes');
+    previewWindow.document.write(`
+                <!DOCTYPE html>
+                <html lang="de">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>Vorschau: ${escapeHtml(title)}</title>
+                    <link rel="stylesheet" href="styles.css">
+                </head>
+                <body style="padding: 2rem;">
+                    <div class="card" style="max-width: 800px; margin: 0 auto;">
+                        <h1 style="color: #667eea; margin-bottom: 1rem;">${escapeHtml(title)}</h1>
+                        <div style="line-height: 1.8; font-size: 1.1rem;">
+                            ${formatPostContent(content)}
+                        </div>
+                        <div style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #eee; color: #666; font-size: 0.9rem;">
+                            <strong>Vorschau</strong> - Zeichen: ${content.length} | Wörter: ${countWords(content)}
+                        </div>
+                    </div>
+                </body>
+                </html>
+            `);
+    previewWindow.document.close();
+  }
+
+  function handleUpdatePost(event, postId) {
+    event.preventDefault();
+
+    const form = event.target;
+    const title = form.title.value.trim();
+    const content = form.content.value.trim();
+    const imageFile = form.image.files[0];
+    const saveButton = document.getElementById('saveButton');
+
+    // Show loading state
+    saveButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Speichern...';
+    saveButton.disabled = true;
+
+    // Validierung
+    let isValid = true;
+
+    // Titel validieren
+    if (!title) {
+      showError('editTitleError', 'Titel ist ein Pflichtfeld');
+      isValid = false;
+    } else if (title.length > 255) {
+      showError('editTitleError', 'Titel darf maximal 255 Zeichen haben');
+      isValid = false;
+    } else {
+      hideError('editTitleError');
+    }
+
+    // Content validieren
+    if (!content) {
+      showError('editContentError', 'Inhalt ist ein Pflichtfeld');
+      isValid = false;
+    } else if (content.length < 10) {
+      showError('editContentError', 'Inhalt muss mindestens 10 Zeichen haben');
+      isValid = false;
+    } else if (content.length > 5000) {
+      showError('editContentError', 'Inhalt darf maximal 5000 Zeichen haben');
+      isValid = false;
+    } else {
+      hideError('editContentError');
+    }
+
+    // Bild validieren (wenn vorhanden)
+    if (imageFile) {
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+      const maxSize = 5 * 1024 * 1024; // 5MB
+
+      if (!allowedTypes.includes(imageFile.type)) {
+        showError('editImageError', 'Nur JPEG und PNG Dateien sind erlaubt');
+        isValid = false;
+      } else if (imageFile.size > maxSize) {
+        showError('editImageError', 'Datei ist zu groß (max. 5MB)');
+        isValid = false;
+      } else {
+        hideError('editImageError');
+      }
+    }
+
+    // Simulate save delay
+    setTimeout(() => {
+      if (isValid) {
+        // Post aktualisieren
+        const postIndex = posts.findIndex(p => p.id === postId);
+        if (postIndex !== -1) {
+          posts[postIndex].title = title;
+          posts[postIndex].content = content;
+          if (imageFile) {
+            posts[postIndex].image_path = `uploads/${imageFile.name}`;
+          }
+          // Note: image_path might be null if removed via removeCurrentImage()
+        }
+
+        // Erfolg anzeigen
+        showSuccessMessage('Post wurde erfolgreich aktualisiert!');
+
+        setTimeout(() => {
+          window.location.href = `post.html?id=${postId}`;
+        }, 1500);
+      } else {
+        // Reset button
+        saveButton.innerHTML = '<i class="fas fa-save"></i> Änderungen speichern';
+        saveButton.disabled = false;
+      }
+    }, 800);
+  }
+
+  function showErrorPage(message) {
+    document.getElementById('edit-content').innerHTML = `
+                <div class="card" style="max-width: 600px; margin: 0 auto; text-align: center; padding: 3rem;">
+                    <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #ffc107; margin-bottom: 1rem;"></i>
+                    <h2 style="color: #856404; margin-bottom: 1rem;">Fehler</h2>
+                    <p style="margin-bottom: 2rem; color: #666;">${message}</p>
+                    <a href="posts.html" class="btn">
+                        <i class="fas fa-arrow-left"></i> Zurück zur Übersicht
+                    </a>
+                </div>
+            `;
+  }
+
+  function formatPostContent(content) {
+    return escapeHtml(content)
+            .split('\n\n')
+            .map(paragraph => paragraph.trim())
+            .filter(paragraph => paragraph.length > 0)
+            .map(paragraph => `<p style="margin-bottom: 1.5rem;">${paragraph.replace(/\n/g, '<br>')}</p>`)
+            .join('');
+  }
+
+  function countWords(text) {
+    return text.trim().split(/\s+/).filter(word => word.length > 0).length;
+  }
+
+  function formatDate(date) {
+    return new Intl.DateTimeFormat('de-DE', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(date);
+  }
+</script>
+</body>
+</html>

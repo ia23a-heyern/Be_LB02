@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BlogAPI - Post</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+<header>
+    <nav>
+        <div class="logo">
+            <i class="fas fa-blog"></i> BlogAPI
+        </div>
+        <ul class="nav-links">
+            <li><a href="index.html">Startseite</a></li>
+            <li><a href="posts.html">Alle Posts</a></li>
+            <li><a href="create.html">Post erstellen</a></li>
+            <li><a href="login.html">Login</a></li>
+        </ul>
+    </nav>
+</header>
+
+<div class="container">
+    <div style="max-width: 800px; margin: 0 auto;">
+        <a href="posts.html" class="btn" style="margin-bottom: 2rem; background: linear-gradient(45deg, #6c757d, #5a6268);">
+            <i class="fas fa-arrow-left"></i> Zurück zu allen Posts
+        </a>
+
+        <div id="post-content" class="card">
+            <!-- Post content wird hier geladen -->
+        </div>
+    </div>
+</div>
+
+<footer>
+    <p>&copy; 2025 BlogAPI - Entwickelt für LB1 Projekt</p>
+</footer>
+
+<script src="script.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        loadSinglePost();
+    });
+
+    function loadSinglePost() {
+        // Get post ID from URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const postId = parseInt(urlParams.get('id'));
+
+        if (!postId) {
+            document.getElementById('post-content').innerHTML = `
+                    <div style="text-align: center; padding: 2rem;">
+                        <i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #ffc107; margin-bottom: 1rem;"></i>
+                        <h2>Post nicht gefunden</h2>
+                        <p>Der angeforderte Post konnte nicht gefunden werden.</p>
+                        <a href="posts.html" class="btn">Zurück zur Übersicht</a>
+                    </div>
+                `;
+            return;
+        }
+
+        const post = posts.find(p => p.id === postId);
+
+        if (!post) {
+            document.getElementById('post-content').innerHTML = `
+                    <div style="text-align: center; padding: 2rem;">
+                        <i class="fas fa-search" style="font-size: 3rem; color: #6c757d; margin-bottom: 1rem;"></i>
+                        <h2>Post nicht verfügbar</h2>
+                        <p>Der Post mit der ID ${postId} existiert nicht oder wurde entfernt.</p>
+                        <a href="posts.html" class="btn">Zurück zur Übersicht</a>
+                    </div>
+                `;
+            return;
+        }
+
+        // Update page title
+        document.title = `BlogAPI - ${post.title}`;
+
+        // Render post
+        document.getElementById('post-content').innerHTML = `
+                <article>
+                    <header style="margin-bottom: 2rem; border-bottom: 2px solid #667eea; padding-bottom: 1rem;">
+                        <h1 style="color: #667eea; margin-bottom: 0.5rem; font-size: 2.5rem; line-height: 1.2;">
+                            ${escapeHtml(post.title)}
+                        </h1>
+                        <div style="color: #666; font-size: 0.9rem;">
+                            <i class="fas fa-calendar-alt"></i> Erstellt am ${formatDate(new Date())}
+                            <span style="margin-left: 1rem;"><i class="fas fa-user"></i> Author ID: ${post.user_id}</span>
+                            <span style="margin-left: 1rem;"><i class="fas fa-eye"></i> Post ID: ${post.id}</span>
+                        </div>
+                    </header>
+
+                    ${post.image_path ? `
+                        <figure style="margin: 2rem 0; text-align: center;">
+                            <img src="${post.image_path}"
+                                 alt="${escapeHtml(post.title)}"
+                                 style="max-width: 100%; height: auto; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);"
+                                 onclick="openImageModal(this.src, '${escapeHtml(post.title)}')"
+                                 title="Klicken für Vollbild">
+                            <figcaption style="color: #666; font-size: 0.9rem; margin-top: 0.5rem; font-style: italic;">
+                                Bild zum Artikel "${escapeHtml(post.title)}"
+                            </figcaption>
+                        </figure>
+                    ` : ''}
+
+                    <div class="post-content" style="line-height: 1.8; font-size: 1.1rem; color: #333;">
+                        ${formatPostContent(post.content)}
+                    </div>
+
+                    <footer style="margin-top: 3rem; padding-top: 2rem; border-top: 1px solid #eee;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                            <div style="color: #666; font-size: 0.9rem;">
+                                <i class="fas fa-info-circle"></i>
+                                Zeichen: ${post.content.length} |
+                                Wörter: ${countWords(post.content)} |
+                                Lesezeit: ~${Math.ceil(countWords(post.content) / 200)} Min
+                            </div>
+
+                            ${currentUser && currentUser.role === 'admin' ? `
+                                <div style="display: flex; gap: 1rem;">
+                                    <a href="edit.html?id=${post.id}" class="btn" style="background: linear-gradient(45deg, #28a745, #20c997);">
+                                        <i class="fas fa-edit"></i> Bearbeiten
+                                    </a>
+                                    <button onclick="deleteCurrentPost(${post.id})" class="btn" style="background: linear-gradient(45deg, #dc3545, #e74c3c);">
+                                        <i class="fas fa-trash"></i> Löschen
+                                    </button>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </footer>
+                </article>
+            `;
+
+        // Add reading progress indicator
+        addReadingProgressIndicator();
+    }
+
+    function formatPostContent(content) {
+        // Convert line breaks to paragraphs
+        return escapeHtml(content)
+            .split('\n\n')
+            .map(paragraph => paragraph.trim())
+            .filter(paragraph => paragraph.length > 0)
+            .map(paragraph => `<p style="margin-bottom: 1.5rem;">${paragraph.replace(/\n/g, '<br>')}</p>`)
+            .join('');
+    }
+
+    function countWords(text) {
+        return text.trim().split(/\s+/).filter(word => word.length > 0).length;
+    }
+
+    function formatDate(date) {
+        return new Intl.DateTimeFormat('de-DE', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        }).format(date);
+    }
+
+    function deleteCurrentPost(postId) {
+        if (confirm('Sind Sie sicher, dass Sie diesen Post löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.')) {
+            const postIndex = posts.findIndex(p => p.id === postId);
+            if (postIndex !== -1) {
+                posts.splice(postIndex, 1);
+                showSuccessMessage('Post wurde erfolgreich gelöscht!');
+
+                setTimeout(() => {
+                    window.location.href = 'posts.html';
+                }, 1500);
+            }
+        }
+    }
+
+    function openImageModal(src, alt) {
+        // Create modal for full-size image view
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.9);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 1000;
+                cursor: pointer;
+            `;
+
+        const img = document.createElement('img');
+        img.src = src;
+        img.alt = alt;
+        img.style.cssText = `
+                max-width: 90%;
+                max-height: 90%;
+                border-radius: 10px;
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            `;
+
+        const closeButton = document.createElement('button');
+        closeButton.innerHTML = '<i class="fas fa-times"></i>';
+        closeButton.style.cssText = `
+                position: absolute;
+                top: 20px;
+                right: 20px;
+                background: rgba(255, 255, 255, 0.2);
+                border: none;
+                color: white;
+                font-size: 1.5rem;
+                padding: 0.5rem;
+                border-radius: 50%;
+                cursor: pointer;
+                backdrop-filter: blur(10px);
+            `;
+
+        modal.appendChild(img);
+        modal.appendChild(closeButton);
+
+        // Close modal on click
+        modal.addEventListener('click', () => {
+            document.body.removeChild(modal);
+        });
+
+        closeButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.body.removeChild(modal);
+        });
+
+        // Close on Escape key
+        const handleEscape = (e) => {
+            if (e.key === 'Escape') {
+                document.body.removeChild(modal);
+                document.removeEventListener('keydown', handleEscape);
+            }
+        };
+        document.addEventListener('keydown', handleEscape);
+
+        document.body.appendChild(modal);
+    }
+
+    function addReadingProgressIndicator() {
+        // Create reading progress bar
+        const progressBar = document.createElement('div');
+        progressBar.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 0%;
+                height: 3px;
+                background: linear-gradient(90deg, #667eea, #764ba2);
+                z-index: 999;
+                transition: width 0.3s ease;
+            `;
+        document.body.appendChild(progressBar);
+
+        // Update progress on scroll
+        function updateProgress() {
+            const article = document.querySelector('article');
+            if (!article) return;
+
+            const articleTop = article.offsetTop;
+            const articleHeight = article.offsetHeight;
+            const windowHeight = window.innerHeight;
+            const scrollTop = window.pageYOffset;
+
+            const articleEnd = articleTop + articleHeight - windowHeight;
+            const progress = Math.min(100, Math.max(0, (scrollTop - articleTop) / (articleEnd - articleTop) * 100));
+
+            progressBar.style.width = progress + '%';
+        }
+
+        window.addEventListener('scroll', updateProgress);
+        updateProgress(); // Initial call
+    }
+
+    // Share functionality (optional)
+    function sharePost() {
+        if (navigator.share) {
+            const post = posts.find(p => p.id === parseInt(new URLSearchParams(window.location.search).get('id')));
+            if (post) {
+                navigator.share({
+                    title: post.title,
+                    text: post.content.substring(0, 100) + '...',
+                    url: window.location.href
+                });
+            }
+        } else {
+            // Fallback: copy URL to clipboard
+            navigator.clipboard.writeText(window.location.href).then(() => {
+                showSuccessMessage('Link wurde in die Zwischenablage kopiert!');
+            });
+        }
+    }
+</script>
+</body>
+</html>
