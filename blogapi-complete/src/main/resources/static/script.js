@@ -1,6 +1,6 @@
-// BlogAPI JavaScript - Mit echter API-Integration
+// BlogAPI JavaScript - Mit echter API-Integration (Korrigiert)
 // Konfiguration
-const API_BASE_URL = 'http://localhost:8080'; // Passe dies an deine Backend-URL an
+const API_BASE_URL = 'http://localhost:8080'; // Backend URL
 let authToken = localStorage.getItem('jwtToken') || null;
 let currentUser = null;
 
@@ -21,19 +21,26 @@ async function apiRequest(endpoint, options = {}) {
     }
 
     try {
+        console.log(`API Request: ${API_BASE_URL}${endpoint}`, { method: options.method || 'GET', headers });
+
         const response = await fetch(`${API_BASE_URL}${endpoint}`, {
             ...options,
             headers
         });
 
+        console.log(`API Response: ${response.status} ${response.statusText}`);
+
         if (response.status === 401) {
-            // Token ungültig
+            // Token ungültig - Logout
+            console.log('Token ungültig - Logout');
             logout();
             throw new Error('Nicht autorisiert');
         }
 
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const errorText = await response.text();
+            console.error(`API Error: ${response.status} - ${errorText}`);
+            throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
         }
 
         return response;
@@ -51,6 +58,8 @@ async function login(event) {
     const username = form.username.value.trim();
     const password = form.password.value.trim();
     const loginButton = document.getElementById('loginButton');
+
+    console.log('Login attempt:', { username, password: '***' });
 
     // Validierung
     let isValid = true;
@@ -84,6 +93,8 @@ async function login(event) {
         });
 
         const data = await response.json();
+        console.log('Login erfolgreich:', data);
+
         authToken = data.token;
         localStorage.setItem('jwtToken', authToken);
 
@@ -102,7 +113,9 @@ async function login(event) {
         }, 1500);
 
     } catch (error) {
-        showError('passwordError', 'Ungültige Anmeldedaten');
+        console.error('Login fehler:', error);
+        showError('passwordError', 'Ungültige Anmeldedaten. Bitte überprüfen Sie Benutzername und Passwort.');
+
         if (loginButton) {
             loginButton.innerHTML = '<i class="fas fa-sign-in-alt"></i> Anmelden';
             loginButton.disabled = false;
@@ -111,27 +124,36 @@ async function login(event) {
 }
 
 async function checkAuthStatus() {
-    if (!authToken) return;
+    if (!authToken) {
+        console.log('Kein Token vorhanden');
+        return;
+    }
 
     try {
+        console.log('Überprüfe Auth Status...');
         const response = await apiRequest('/me');
         const userData = await response.json();
+        console.log('User data:', userData);
 
         // Setze currentUser basierend auf Rollen
         currentUser = {
             username: userData.username,
-            role: userData.roles.includes('ROLE_ADMIN') ? 'admin' : 'user',
+            role: userData.roles.includes('ROLE_ADMIN') ? 'admin' :
+                userData.roles.includes('ROLE_READER') ? 'reader' : 'user',
             roles: userData.roles
         };
 
+        console.log('Current user set:', currentUser);
         updateNavigation();
     } catch (error) {
+        console.error('Auth check failed:', error);
         // Token ungültig
         logout();
     }
 }
 
 function logout() {
+    console.log('Logout');
     authToken = null;
     currentUser = null;
     localStorage.removeItem('jwtToken');
@@ -150,8 +172,10 @@ function logout() {
 // POSTS FUNKTIONEN
 async function loadPosts() {
     try {
+        console.log('Lade Posts...');
         const response = await apiRequest('/posts');
         const posts = await response.json();
+        console.log('Posts geladen:', posts);
         return posts;
     } catch (error) {
         console.error('Fehler beim Laden der Posts:', error);
@@ -161,8 +185,10 @@ async function loadPosts() {
 
 async function loadSinglePost(postId) {
     try {
+        console.log('Lade Post:', postId);
         const response = await apiRequest(`/posts/${postId}`);
         const post = await response.json();
+        console.log('Post geladen:', post);
         return post;
     } catch (error) {
         console.error('Fehler beim Laden des Posts:', error);
@@ -177,6 +203,8 @@ async function createPost(event) {
     const title = form.title.value.trim();
     const content = form.content.value.trim();
     const imageFile = form.image.files[0];
+
+    console.log('Erstelle Post:', { title, content: content.substring(0, 50) + '...', hasImage: !!imageFile });
 
     // Validierung
     let isValid = true;
@@ -214,7 +242,9 @@ async function createPost(event) {
 
         // Bild hochladen wenn vorhanden
         if (imageFile) {
+            console.log('Lade Bild hoch...');
             imagePath = await uploadImage(imageFile);
+            console.log('Bild hochgeladen:', imagePath);
         }
 
         // Post erstellen
@@ -224,12 +254,14 @@ async function createPost(event) {
             imagePath
         };
 
+        console.log('Sende Post data:', postData);
         const response = await apiRequest('/posts', {
             method: 'POST',
             body: JSON.stringify(postData)
         });
 
         const newPost = await response.json();
+        console.log('Post erstellt:', newPost);
         showSuccessMessage('Post wurde erfolgreich erstellt!');
 
         setTimeout(() => {
@@ -241,7 +273,8 @@ async function createPost(event) {
         }, 1500);
 
     } catch (error) {
-        showError('titleError', 'Fehler beim Erstellen des Posts. Sind Sie angemeldet?');
+        console.error('Fehler beim Erstellen:', error);
+        showError('titleError', 'Fehler beim Erstellen des Posts. Sind Sie als Admin angemeldet?');
     }
 }
 
@@ -252,6 +285,8 @@ async function updatePost(event, postId) {
     const title = form.title.value.trim();
     const content = form.content.value.trim();
     const imageFile = form.image.files[0];
+
+    console.log('Update Post:', postId, { title, content: content.substring(0, 50) + '...', hasImage: !!imageFile });
 
     // Validierung
     let isValid = true;
@@ -291,7 +326,9 @@ async function updatePost(event, postId) {
 
         // Neues Bild hochladen wenn vorhanden
         if (imageFile) {
+            console.log('Lade neues Bild hoch...');
             imagePath = await uploadImage(imageFile);
+            console.log('Neues Bild hochgeladen:', imagePath);
         }
 
         // Post aktualisieren
@@ -301,12 +338,14 @@ async function updatePost(event, postId) {
             imagePath
         };
 
+        console.log('Update Post data:', postData);
         const response = await apiRequest(`/posts/${postId}`, {
             method: 'PUT',
             body: JSON.stringify(postData)
         });
 
         const updatedPost = await response.json();
+        console.log('Post aktualisiert:', updatedPost);
         showSuccessMessage('Post wurde erfolgreich aktualisiert!');
 
         setTimeout(() => {
@@ -318,6 +357,7 @@ async function updatePost(event, postId) {
         }, 1500);
 
     } catch (error) {
+        console.error('Fehler beim Aktualisieren:', error);
         showError('editTitleError', 'Fehler beim Aktualisieren des Posts');
     }
 }
@@ -328,10 +368,12 @@ async function deletePost(postId) {
     }
 
     try {
+        console.log('Lösche Post:', postId);
         await apiRequest(`/posts/${postId}`, {
             method: 'DELETE'
         });
 
+        console.log('Post gelöscht');
         showSuccessMessage('Post wurde erfolgreich gelöscht!');
 
         setTimeout(() => {
@@ -343,6 +385,7 @@ async function deletePost(postId) {
         }, 1500);
 
     } catch (error) {
+        console.error('Fehler beim Löschen:', error);
         showError('generalError', 'Fehler beim Löschen des Posts');
     }
 }
@@ -353,6 +396,8 @@ async function uploadImage(file) {
     formData.append('file', file);
 
     try {
+        console.log('Upload Bild:', file.name, file.size, file.type);
+
         const response = await fetch(`${API_BASE_URL}/upload`, {
             method: 'POST',
             headers: {
@@ -361,13 +406,20 @@ async function uploadImage(file) {
             body: formData
         });
 
+        console.log('Upload Response:', response.status, response.statusText);
+
         if (!response.ok) {
-            throw new Error('Bild-Upload fehlgeschlagen');
+            const errorText = await response.text();
+            console.error('Upload Fehler:', errorText);
+            throw new Error('Bild-Upload fehlgeschlagen: ' + errorText);
         }
 
         // Response ist plain text mit der URL
         const imagePath = await response.text();
-        return imagePath.replace(/"/g, ''); // Entferne Anführungszeichen falls vorhanden
+        console.log('Upload erfolgreich:', imagePath);
+
+        // Entferne Anführungszeichen falls vorhanden
+        return imagePath.replace(/"/g, '');
 
     } catch (error) {
         console.error('Fehler beim Bild-Upload:', error);
@@ -392,8 +444,10 @@ async function getPostsPage() {
             <div class="card">
                 <h3>Keine Posts vorhanden</h3>
                 <p>Es sind noch keine Blog-Posts verfügbar.</p>
-                ${currentUser ? `<a href="javascript:loadPage('create')" class="btn">Ersten Post erstellen</a>` :
-            `<a href="javascript:loadPage('login')" class="btn">Anmelden zum Erstellen</a>`}
+                ${currentUser && currentUser.role === 'admin' ?
+            `<a href="javascript:loadPage('create')" class="btn">Ersten Post erstellen</a>` :
+            `<a href="javascript:loadPage('login')" class="btn">Anmelden zum Erstellen</a>`
+        }
             </div>
         `;
     } else {
@@ -403,6 +457,10 @@ async function getPostsPage() {
 
             postsHtml += `
                 <div class="card">
+                    ${post.imagePath ? `
+                        <img src="${post.imagePath}" alt="${escapeHtml(post.title)}" 
+                             style="width: 100%; height: 200px; object-fit: cover; border-radius: 10px; margin-bottom: 1rem;">
+                    ` : ''}
                     <h3>${escapeHtml(post.title)}</h3>
                     <p>${escapeHtml(displayContent.substring(0, 150))}${displayContent.length > 150 ? '...' : ''}</p>
                     ${isRestricted ?
@@ -421,7 +479,7 @@ async function getPostsPage() {
     postsHtml += `
         </div>
         <div style="text-align: center; margin-top: 2rem;">
-            ${currentUser ?
+            ${currentUser && currentUser.role === 'admin' ?
         `<a href="javascript:loadPage('create')" class="btn"><i class="fas fa-plus"></i> Neuen Post erstellen</a>` :
         `<a href="javascript:loadPage('login')" class="btn"><i class="fas fa-sign-in-alt"></i> Anmelden zum Erstellen</a>`
     }
@@ -450,7 +508,7 @@ async function showPost(postId) {
             
             <div class="card">
                 <h1 style="color: #667eea; margin-bottom: 1rem;">${escapeHtml(post.title)}</h1>
-                ${post.imagePath ? `<img src="${API_BASE_URL}${post.imagePath}" alt="${escapeHtml(post.title)}" style="max-width: 100%; height: auto; border-radius: 10px; margin-bottom: 1rem;">` : ''}
+                ${post.imagePath ? `<img src="${post.imagePath}" alt="${escapeHtml(post.title)}" style="max-width: 100%; height: auto; border-radius: 10px; margin-bottom: 1rem;">` : ''}
                 <div style="line-height: 1.8; font-size: 1.1rem;">
                     ${escapeHtml(displayContent).replace(/\n/g, '<br>')}
                 </div>
@@ -535,7 +593,7 @@ async function editPost(postId) {
                     </label>
                     ${post.imagePath ? `
                         <div style="margin-bottom: 1rem;">
-                            <img src="${API_BASE_URL}${post.imagePath}" alt="Aktuelles Bild" style="max-width: 200px; height: auto; border-radius: 5px;">
+                            <img src="${post.imagePath}" alt="Aktuelles Bild" style="max-width: 200px; height: auto; border-radius: 5px;">
                             <p style="color: #666; font-size: 0.9rem; margin-top: 0.5rem;">Aktuelles Bild - Wählen Sie eine neue Datei, um es zu ersetzen</p>
                         </div>
                     ` : ''}
@@ -580,8 +638,8 @@ async function loadPage(page) {
             if (navLinks[1]) navLinks[1].classList.add('current-page');
             break;
         case 'create':
-            if (!currentUser) {
-                showError('generalError', 'Sie müssen angemeldet sein, um Posts zu erstellen');
+            if (!currentUser || currentUser.role !== 'admin') {
+                showError('generalError', 'Sie müssen als Administrator angemeldet sein, um Posts zu erstellen');
                 loadPage('login');
                 return;
             }
@@ -617,7 +675,7 @@ function getHomePage() {
             <div class="card">
                 <h3><i class="fas fa-plus-circle"></i> Neuen Post erstellen</h3>
                 <p>Erstellen Sie neue Blog-Posts mit Titel, Inhalt und optionalen Bildern.</p>
-                ${currentUser ?
+                ${currentUser && currentUser.role === 'admin' ?
         `<a href="javascript:loadPage('create')" class="btn">Post erstellen</a>` :
         `<a href="javascript:loadPage('login')" class="btn">Anmelden zum Erstellen</a>`
     }
@@ -627,7 +685,7 @@ function getHomePage() {
                 <h3><i class="fas fa-user-shield"></i> Admin-Bereich</h3>
                 <p>Verwalten Sie Posts als Administrator - bearbeiten und löschen Sie Inhalte.</p>
                 ${currentUser ?
-        `<button onclick="logout()" class="btn" style="background: linear-gradient(45deg, #dc3545, #e74c3c);">Abmelden</button>` :
+        `<button onclick="logout()" class="btn" style="background: linear-gradient(45deg, #dc3545, #e74c3c);">Abmelden (${currentUser.username})</button>` :
         `<a href="javascript:loadPage('login')" class="btn">Anmelden</a>`
     }
             </div>
@@ -639,7 +697,7 @@ function getHomePage() {
                 <div class="feature-item">
                     <i class="fas fa-shield-alt"></i>
                     <h4>JWT-Authentifizierung</h4>
-                    <p>Sichere Token-basierte Anmeldung</p>
+                    <p>Sichere Token-basierte Anmeldung mit Spring Security</p>
                 </div>
                 <div class="feature-item">
                     <i class="fas fa-image"></i>
@@ -649,12 +707,12 @@ function getHomePage() {
                 <div class="feature-item">
                     <i class="fas fa-lock"></i>
                     <h4>Geschützte Inhalte</h4>
-                    <p>Inhalte nur für angemeldete Benutzer</p>
+                    <p>Post-Inhalte nur für angemeldete Benutzer sichtbar</p>
                 </div>
                 <div class="feature-item">
                     <i class="fas fa-users"></i>
                     <h4>Rollenbasierte Rechte</h4>
-                    <p>Admin und Reader Rollen</p>
+                    <p>ADMIN (erstellen/bearbeiten) und READER (nur lesen) Rollen</p>
                 </div>
             </div>
         </section>
@@ -754,7 +812,7 @@ function getLoginPage() {
                     </h4>
                     <p style="margin: 0;">
                         Benutzer: <strong>${escapeHtml(currentUser.username)}</strong><br>
-                        Rolle: <strong>${currentUser.role === 'admin' ? 'Administrator' : 'Benutzer'}</strong>
+                        Rolle: <strong>${currentUser.role === 'admin' ? 'Administrator' : 'Benutzer/Reader'}</strong>
                     </p>
                     <button onclick="logout()" class="btn" style="margin-top: 1rem; background: linear-gradient(45deg, #dc3545, #e74c3c);">
                         <i class="fas fa-sign-out-alt"></i> Abmelden
@@ -797,17 +855,23 @@ function getLoginPage() {
                     </div>
 
                     <div class="info-message">
-                        <h4 style="margin-bottom: 0.5rem;">Test-Zugangsdaten:</h4>
+                        <h4 style="margin-bottom: 0.5rem;"><i class="fas fa-info-circle"></i> Test-Zugangsdaten:</h4>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
                             <div style="background: rgba(102, 126, 234, 0.1); padding: 0.75rem; border-radius: 5px;">
                                 <strong>👨‍💼 Administrator</strong><br>
                                 <small>Benutzername:</small> <code>Max15</code><br>
-                                <small>Passwort:</small> <code>Stern3849</code>
+                                <small>Passwort:</small> <code>Stern3849</code><br>
+                                <button type="button" onclick="quickLogin('admin')" style="margin-top: 0.5rem; padding: 0.25rem 0.5rem; background: #667eea; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.8rem;">
+                                    Schnell-Login
+                                </button>
                             </div>
                             <div style="background: rgba(118, 75, 162, 0.1); padding: 0.75rem; border-radius: 5px;">
-                                <strong>👤 Benutzer</strong><br>
+                                <strong>👤 Reader</strong><br>
                                 <small>Benutzername:</small> <code>Berta</code><br>
-                                <small>Passwort:</small> <code>Sonne2024</code>
+                                <small>Passwort:</small> <code>Sonne2024</code><br>
+                                <button type="button" onclick="quickLogin('reader')" style="margin-top: 0.5rem; padding: 0.25rem 0.5rem; background: #764ba2; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.8rem;">
+                                    Schnell-Login
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -816,3 +880,254 @@ function getLoginPage() {
         </div>
     `;
 }
+
+// QUICK LOGIN FUNKTIONEN
+function quickLogin(type) {
+    const usernameField = document.getElementById('username');
+    const passwordField = document.getElementById('password');
+
+    if (type === 'admin') {
+        usernameField.value = 'Max15';
+        passwordField.value = 'Stern3849';
+    } else if (type === 'reader') {
+        usernameField.value = 'Berta';
+        passwordField.value = 'Sonne2024';
+    }
+
+    // Trigger form submission
+    document.getElementById('loginForm').dispatchEvent(new Event('submit'));
+}
+
+// VALIDIERUNGS-FUNKTIONEN
+function validateTitle(title) {
+    if (!title || title.trim().length === 0) {
+        return { valid: false, message: 'Titel ist ein Pflichtfeld' };
+    }
+    if (title.length > 255) {
+        return { valid: false, message: 'Titel darf maximal 255 Zeichen haben' };
+    }
+    if (title.length < 3) {
+        return { valid: false, message: 'Titel muss mindestens 3 Zeichen haben' };
+    }
+    return { valid: true };
+}
+
+function validateContent(content) {
+    if (!content || content.trim().length === 0) {
+        return { valid: false, message: 'Inhalt ist ein Pflichtfeld' };
+    }
+    if (content.length < 10) {
+        return { valid: false, message: 'Inhalt muss mindestens 10 Zeichen haben' };
+    }
+    if (content.length > 5000) {
+        return { valid: false, message: 'Inhalt darf maximal 5000 Zeichen haben' };
+    }
+    return { valid: true };
+}
+
+function validateImage(file) {
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+    const maxSize = 5 * 1024 * 1024; // 5MB
+
+    if (!allowedTypes.includes(file.type)) {
+        return { valid: false, message: 'Nur JPEG und PNG Dateien sind erlaubt' };
+    }
+    if (file.size > maxSize) {
+        return { valid: false, message: 'Datei ist zu groß (max. 5MB)' };
+    }
+    return { valid: true };
+}
+
+// HELPER FUNKTIONEN
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function showError(fieldId, message) {
+    const errorElement = document.getElementById(fieldId);
+    if (errorElement) {
+        errorElement.textContent = message;
+        errorElement.classList.add('show');
+
+        // Add error class to parent form field
+        const formField = errorElement.closest('.form-field');
+        if (formField) {
+            formField.classList.add('error');
+        }
+    }
+}
+
+function hideError(fieldId) {
+    const errorElement = document.getElementById(fieldId);
+    if (errorElement) {
+        errorElement.textContent = '';
+        errorElement.classList.remove('show');
+
+        // Remove error class from parent form field
+        const formField = errorElement.closest('.form-field');
+        if (formField) {
+            formField.classList.remove('error');
+        }
+    }
+}
+
+function showSuccessMessage(message) {
+    // Create and show temporary success message
+    const successDiv = document.createElement('div');
+    successDiv.className = 'success-message';
+    successDiv.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1000;
+        max-width: 400px;
+        animation: slideIn 0.3s ease;
+    `;
+    successDiv.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <i class="fas fa-check-circle"></i>
+            <span>${message}</span>
+        </div>
+    `;
+
+    document.body.appendChild(successDiv);
+
+    setTimeout(() => {
+        successDiv.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => {
+            if (document.body.contains(successDiv)) {
+                document.body.removeChild(successDiv);
+            }
+        }, 300);
+    }, 3000);
+}
+
+// FORM HANDLER SETUP
+function setupFormHandlers() {
+    // Content counter
+    const contentField = document.getElementById('content');
+    if (contentField) {
+        contentField.addEventListener('input', function() {
+            const counter = document.getElementById('contentCounter');
+            if (counter) {
+                counter.textContent = this.value.length;
+                if (this.value.length > 4500) {
+                    counter.style.color = '#dc3545';
+                } else if (this.value.length > 4000) {
+                    counter.style.color = '#ffc107';
+                } else {
+                    counter.style.color = '#666';
+                }
+            }
+        });
+    }
+
+    // Image preview
+    const imageField = document.getElementById('image');
+    if (imageField) {
+        imageField.addEventListener('change', function() {
+            handleImagePreview(this);
+        });
+    }
+}
+
+function setupEditFormHandlers() {
+    // Content counter for edit form
+    const contentField = document.getElementById('editContent');
+    if (contentField) {
+        contentField.addEventListener('input', function() {
+            const counter = document.getElementById('editContentCounter');
+            if (counter) {
+                counter.textContent = this.value.length;
+                if (this.value.length > 4500) {
+                    counter.style.color = '#dc3545';
+                } else if (this.value.length > 4000) {
+                    counter.style.color = '#ffc107';
+                } else {
+                    counter.style.color = '#666';
+                }
+            }
+        });
+    }
+
+    // Image preview for edit
+    const imageField = document.getElementById('editImage');
+    if (imageField) {
+        imageField.addEventListener('change', function() {
+            handleImagePreview(this, 'editImageError');
+        });
+    }
+}
+
+function handleImagePreview(input, errorFieldId = 'imageError') {
+    const file = input.files[0];
+    const preview = document.getElementById('imagePreview');
+    const previewImg = document.getElementById('previewImg');
+
+    if (file) {
+        const validation = validateImage(file);
+        if (!validation.valid) {
+            showError(errorFieldId, validation.message);
+            input.value = '';
+            if (preview) preview.style.display = 'none';
+            return;
+        }
+
+        hideError(errorFieldId);
+
+        if (preview && previewImg) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                previewImg.src = e.target.result;
+                preview.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+    } else {
+        if (preview) preview.style.display = 'none';
+    }
+}
+
+function removeImage() {
+    const imageField = document.getElementById('image');
+    const preview = document.getElementById('imagePreview');
+
+    if (imageField) imageField.value = '';
+    if (preview) preview.style.display = 'none';
+    hideError('imageError');
+}
+
+function updateNavigation() {
+    // Navigation kann hier aktualisiert werden basierend auf currentUser
+    // Für SPA-Version wird dies durch loadPage() Aufrufe gehandhabt
+}
+
+// INITIALIZATION
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('BlogAPI Frontend gestartet');
+
+    // Füge CSS für Animationen hinzu
+    if (!document.getElementById('success-animations')) {
+        const animationStyles = `
+            @keyframes slideIn {
+                from { transform: translateX(100%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+            }
+        `;
+        const styleSheet = document.createElement('style');
+        styleSheet.id = 'success-animations';
+        styleSheet.textContent = animationStyles;
+        document.head.appendChild(styleSheet);
+    }
+
+    // Lade Startseite wenn auf SPA-Version
+    if (document.getElementById('content')) {
+        loadPage('home');
+    }
+});

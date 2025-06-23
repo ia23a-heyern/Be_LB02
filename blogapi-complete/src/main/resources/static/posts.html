@@ -28,60 +28,394 @@
     <p>Entdecken Sie interessante Artikel und Beiträge</p>
   </section>
 
-  <div id="posts-container" class="cards">
+  <!-- User Status -->
+  <div id="userStatus" style="margin-bottom: 2rem;">
+    <!-- User status wird hier angezeigt -->
+  </div>
+
+  <!-- Loading Indicator -->
+  <div id="loadingIndicator" style="text-align: center; margin: 2rem 0;">
+    <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: #667eea;"></i>
+    <p style="color: white; margin-top: 1rem;">Posts werden geladen...</p>
+  </div>
+
+  <!-- Posts Container -->
+  <div id="posts-container" class="cards" style="display: none;">
     <!-- Posts werden hier dynamisch geladen -->
   </div>
 
-  <div style="text-align: center; margin-top: 2rem;">
-    <a href="create.html" class="btn">
-      <i class="fas fa-plus"></i> Neuen Post erstellen
-    </a>
+  <!-- No Posts Message -->
+  <div id="noPostsMessage" style="display: none; text-align: center;">
+    <div class="card" style="max-width: 600px; margin: 0 auto;">
+      <i class="fas fa-inbox" style="font-size: 3rem; color: #667eea; margin-bottom: 1rem;"></i>
+      <h3>Keine Posts vorhanden</h3>
+      <p>Es sind noch keine Blog-Posts verfügbar.</p>
+      <div id="createPostButton">
+        <!-- Button wird hier eingefügt -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Action Buttons -->
+  <div id="actionButtons" style="text-align: center; margin-top: 2rem; display: none;">
+    <!-- Action buttons werden hier eingefügt -->
   </div>
 </div>
 
 <footer>
-  <p>&copy; 2025 BlogAPI - Entwickelt für LB1 Projekt</p>
+  <p>&copy; 2025 BlogAPI - Entwickelt für LB2 Projekt</p>
 </footer>
 
 <script src="script.js"></script>
 <script>
   // Lade Posts beim Seitenaufruf
   document.addEventListener('DOMContentLoaded', function() {
-    loadPostsOnPage();
+    initializePostsPage();
   });
 
-  function loadPostsOnPage() {
-    const container = document.getElementById('posts-container');
-    if (!container) return;
+  async function initializePostsPage() {
+    // Prüfe Token falls vorhanden
+    if (authToken) {
+      await checkAuthStatus();
+    }
 
+    // Zeige User Status
+    updateUserStatus();
+
+    // Lade Posts
+    await loadPostsOnPage();
+  }
+
+  function updateUserStatus() {
+    const userStatus = document.getElementById('userStatus');
+
+    if (currentUser) {
+      const roleText = currentUser.role === 'admin' ? 'Administrator' :
+              currentUser.role === 'reader' ? 'Reader' : 'Benutzer';
+      const roleColor = currentUser.role === 'admin' ? '#28a745' :
+              currentUser.role === 'reader' ? '#17a2b8' : '#6c757d';
+
+      userStatus.innerHTML = `
+        <div class="card" style="max-width: 600px; margin: 0 auto; text-align: center; padding: 1.5rem;">
+          <div style="display: flex; align-items: center; justify-content: center; gap: 1rem; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <i class="fas fa-user-circle" style="font-size: 1.5rem; color: ${roleColor};"></i>
+              <span>Angemeldet als: <strong>${escapeHtml(currentUser.username)}</strong></span>
+            </div>
+            <div style="background: ${roleColor}; color: white; padding: 0.25rem 0.75rem; border-radius: 15px; font-size: 0.9rem;">
+              <i class="fas ${currentUser.role === 'admin' ? 'fa-user-shield' : currentUser.role === 'reader' ? 'fa-eye' : 'fa-user'}"></i>
+              ${roleText}
+            </div>
+            <button onclick="logout()" style="background: #dc3545; color: white; border: none; padding: 0.5rem 1rem; border-radius: 20px; cursor: pointer; font-size: 0.9rem;">
+              <i class="fas fa-sign-out-alt"></i> Abmelden
+            </button>
+          </div>
+        </div>
+      `;
+    } else {
+      userStatus.innerHTML = `
+        <div class="card" style="max-width: 600px; margin: 0 auto; text-align: center; padding: 1.5rem;">
+          <div style="display: flex; align-items: center; justify-content: center; gap: 1rem; flex-wrap: wrap;">
+            <span style="color: #666;">
+              <i class="fas fa-user-slash"></i> Nicht angemeldet
+            </span>
+            <span style="color: #666; font-size: 0.9rem;">
+              (Post-Inhalte sind eingeschränkt sichtbar)
+            </span>
+            <a href="login.html" style="background: #667eea; color: white; padding: 0.5rem 1rem; border-radius: 20px; text-decoration: none; font-size: 0.9rem;">
+              <i class="fas fa-sign-in-alt"></i> Anmelden
+            </a>
+          </div>
+        </div>
+      `;
+    }
+  }
+
+  async function loadPostsOnPage() {
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    const postsContainer = document.getElementById('posts-container');
+    const noPostsMessage = document.getElementById('noPostsMessage');
+    const actionButtons = document.getElementById('actionButtons');
+
+    try {
+      console.log('Lade Posts von API...');
+
+      // API-Aufruf
+      const headers = { 'Content-Type': 'application/json' };
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
+
+      const response = await fetch('http://localhost:8080/posts', {
+        method: 'GET',
+        headers: headers
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const posts = await response.json();
+      console.log('Posts geladen:', posts);
+
+      // Hide loading indicator
+      loadingIndicator.style.display = 'none';
+
+      if (posts.length === 0) {
+        // Keine Posts vorhanden
+        noPostsMessage.style.display = 'block';
+
+        const createButton = document.getElementById('createPostButton');
+        if (currentUser && currentUser.role === 'admin') {
+          createButton.innerHTML = `
+            <a href="create.html" class="btn">
+              <i class="fas fa-plus"></i> Ersten Post erstellen
+            </a>
+          `;
+        } else {
+          createButton.innerHTML = `
+            <a href="login.html" class="btn">
+              <i class="fas fa-sign-in-alt"></i> Anmelden zum Erstellen
+            </a>
+          `;
+        }
+      } else {
+        // Posts anzeigen
+        postsContainer.style.display = 'grid';
+        renderPosts(posts);
+
+        // Action Buttons anzeigen
+        actionButtons.style.display = 'block';
+        actionButtons.innerHTML = getActionButtonsHtml();
+      }
+
+    } catch (error) {
+      console.error('Fehler beim Laden der Posts:', error);
+
+      // Hide loading indicator
+      loadingIndicator.style.display = 'none';
+
+      // Show error message
+      postsContainer.innerHTML = `
+        <div class="card" style="grid-column: 1 / -1; text-align: center; padding: 2rem;">
+          <i class="fas fa-exclamation-triangle" style="font-size: 2rem; color: #dc3545; margin-bottom: 1rem;"></i>
+          <h3 style="color: #dc3545;">Fehler beim Laden</h3>
+          <p style="color: #666;">
+            Die Posts konnten nicht geladen werden.<br>
+            Ist das Backend erreichbar?
+          </p>
+          <button onclick="loadPostsOnPage()" class="btn" style="margin-top: 1rem;">
+            <i class="fas fa-redo"></i> Erneut versuchen
+          </button>
+        </div>
+      `;
+      postsContainer.style.display = 'grid';
+    }
+  }
+
+  function renderPosts(posts) {
+    const container = document.getElementById('posts-container');
     let postsHtml = '';
+
     posts.forEach(post => {
+      const displayContent = post.content || 'Inhalt nur für angemeldete Benutzer sichtbar';
+      const isRestricted = !post.content && !currentUser;
+      const excerpt = displayContent.substring(0, 150);
+      const hasMoreContent = displayContent.length > 150;
+
       postsHtml += `
-                    <div class="card">
-                        <h3>${escapeHtml(post.title)}</h3>
-                        <p>${escapeHtml(post.content.substring(0, 150))}${post.content.length > 150 ? '...' : ''}</p>
-                        <a href="post.html?id=${post.id}" class="btn">Vollständig lesen</a>
-                        ${currentUser && currentUser.role === 'admin' ? `
-                            <a href="edit.html?id=${post.id}" class="btn" style="margin-left: 10px; background: linear-gradient(45deg, #28a745, #20c997);">Bearbeiten</a>
-                            <button onclick="deletePostById(${post.id})" class="btn" style="margin-left: 10px; background: linear-gradient(45deg, #dc3545, #e74c3c);">Löschen</button>
-                        ` : ''}
-                    </div>
-                `;
+        <div class="card" style="display: flex; flex-direction: column;">
+          ${post.imagePath ? `
+            <img src="${post.imagePath}"
+                 alt="${escapeHtml(post.title)}"
+                 style="width: 100%; height: 200px; object-fit: cover; border-radius: 10px; margin-bottom: 1rem;"
+                 onerror="this.style.display='none'">
+          ` : ''}
+
+          <h3 style="color: #667eea; margin-bottom: 1rem; line-height: 1.3;">
+            ${escapeHtml(post.title)}
+          </h3>
+
+          <p style="flex-grow: 1; margin-bottom: 1.5rem; line-height: 1.6; color: ${isRestricted ? '#666' : '#333'};">
+            ${escapeHtml(excerpt)}${hasMoreContent ? '...' : ''}
+          </p>
+
+          ${isRestricted ? `
+            <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px; padding: 0.75rem; margin-bottom: 1rem; font-size: 0.9rem;">
+              <i class="fas fa-lock" style="color: #856404;"></i>
+              <span style="color: #856404;">Vollständiger Inhalt nur für angemeldete Benutzer</span>
+            </div>
+          ` : ''}
+
+          <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: auto;">
+            ${isRestricted ? `
+              <a href="login.html" class="btn" style="flex: 1; text-align: center;">
+                <i class="fas fa-sign-in-alt"></i> Anmelden zum Lesen
+              </a>
+            ` : `
+              <a href="post.html?id=${post.id}" class="btn" style="flex: 1; text-align: center;">
+                <i class="fas fa-book-open"></i> Vollständig lesen
+              </a>
+            `}
+
+            ${currentUser && currentUser.role === 'admin' ? `
+              <a href="edit.html?id=${post.id}" class="btn" style="background: linear-gradient(45deg, #28a745, #20c997);" title="Bearbeiten">
+                <i class="fas fa-edit"></i>
+              </a>
+              <button onclick="deletePostById(${post.id})" class="btn" style="background: linear-gradient(45deg, #dc3545, #e74c3c);" title="Löschen">
+                <i class="fas fa-trash"></i>
+              </button>
+            ` : ''}
+          </div>
+
+          <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #eee; font-size: 0.8rem; color: #999;">
+            <i class="fas fa-hashtag"></i> Post ID: ${post.id}
+            ${post.content ? `| ${countWords(post.content)} Wörter` : ''}
+          </div>
+        </div>
+      `;
     });
 
     container.innerHTML = postsHtml;
   }
 
-  function deletePostById(postId) {
-    if (confirm('Sind Sie sicher, dass Sie diesen Post löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.')) {
-      const postIndex = posts.findIndex(p => p.id === postId);
-      if (postIndex !== -1) {
-        posts.splice(postIndex, 1);
-        showSuccessMessage('Post wurde erfolgreich gelöscht!');
-        setTimeout(() => loadPostsOnPage(), 1000);
-      }
+  function getActionButtonsHtml() {
+    if (currentUser && currentUser.role === 'admin') {
+      return `
+        <a href="create.html" class="btn" style="margin-right: 1rem;">
+          <i class="fas fa-plus"></i> Neuen Post erstellen
+        </a>
+        <button onclick="loadPostsOnPage()" class="btn" style="background: linear-gradient(45deg, #17a2b8, #6f42c1);">
+          <i class="fas fa-sync-alt"></i> Aktualisieren
+        </button>
+      `;
+    } else {
+      return `
+        <a href="login.html" class="btn" style="margin-right: 1rem;">
+          <i class="fas fa-sign-in-alt"></i> Anmelden zum Erstellen
+        </a>
+        <button onclick="loadPostsOnPage()" class="btn" style="background: linear-gradient(45deg, #17a2b8, #6f42c1);">
+          <i class="fas fa-sync-alt"></i> Aktualisieren
+        </button>
+      `;
     }
   }
+
+  async function deletePostById(postId) {
+    if (!confirm('Sind Sie sicher, dass Sie diesen Post löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.')) {
+      return;
+    }
+
+    try {
+      console.log('Lösche Post:', postId);
+
+      const response = await fetch(`http://localhost:8080/posts/${postId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${authToken}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Löschen fehlgeschlagen: ${errorText}`);
+      }
+
+      console.log('Post erfolgreich gelöscht');
+      showSuccessMessage('Post wurde erfolgreich gelöscht!');
+
+      // Reload posts after short delay
+      setTimeout(() => {
+        loadPostsOnPage();
+      }, 1000);
+
+    } catch (error) {
+      console.error('Fehler beim Löschen:', error);
+      alert(`Fehler beim Löschen des Posts: ${error.message}`);
+    }
+  }
+
+  function logout() {
+    if (confirm('Möchten Sie sich wirklich abmelden?')) {
+      authToken = null;
+      currentUser = null;
+      localStorage.removeItem('jwtToken');
+
+      showSuccessMessage('Sie wurden erfolgreich abgemeldet!');
+
+      setTimeout(() => {
+        window.location.href = 'index.html';
+      }, 1500);
+    }
+  }
+
+  // Helper Functions
+  function countWords(text) {
+    return text.trim().split(/\s+/).filter(word => word.length > 0).length;
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  function showSuccessMessage(message) {
+    // Create and show temporary success message
+    const successDiv = document.createElement('div');
+    successDiv.className = 'success-message';
+    successDiv.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 1000;
+      max-width: 400px;
+      animation: slideIn 0.3s ease;
+    `;
+    successDiv.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <i class="fas fa-check-circle"></i>
+        <span>${message}</span>
+      </div>
+    `;
+
+    document.body.appendChild(successDiv);
+
+    setTimeout(() => {
+      successDiv.style.animation = 'slideOut 0.3s ease';
+      setTimeout(() => {
+        if (document.body.contains(successDiv)) {
+          document.body.removeChild(successDiv);
+        }
+      }, 300);
+    }, 3000);
+
+    // Add CSS for animations if not already present
+    if (!document.getElementById('success-animations')) {
+      const animationStyles = `
+        @keyframes slideIn {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOut {
+          from { transform: translateX(0); opacity: 1; }
+          to { transform: translateX(100%); opacity: 0; }
+        }
+      `;
+      const styleSheet = document.createElement('style');
+      styleSheet.id = 'success-animations';
+      styleSheet.textContent = animationStyles;
+      document.head.appendChild(styleSheet);
+    }
+  }
+
+  // Auto-refresh every 30 seconds if user is authenticated
+  setInterval(() => {
+    if (currentUser && document.visibilityState === 'visible') {
+      console.log('Auto-refresh posts...');
+      loadPostsOnPage();
+    }
+  }, 30000);
 </script>
 </body>
 </html>

@@ -77,12 +77,18 @@
           <div style="background: rgba(102, 126, 234, 0.1); padding: 0.75rem; border-radius: 5px;">
             <strong>👨‍💼 Administrator</strong><br>
             <small>Benutzername:</small> <code>Max15</code><br>
-            <small>Passwort:</small> <code>12334</code>
+            <small>Passwort:</small> <code>Stern3849</code><br>
+            <button type="button" onclick="quickLogin('admin')" style="margin-top: 0.5rem; padding: 0.25rem 0.5rem; background: #667eea; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.8rem;">
+              Schnell-Login
+            </button>
           </div>
           <div style="background: rgba(118, 75, 162, 0.1); padding: 0.75rem; border-radius: 5px;">
-            <strong>👤 Benutzer</strong><br>
-            <small>Benutzername:</small> <code>User1</code><br>
-            <small>Passwort:</small> <code>pass123</code>
+            <strong>👤 Reader</strong><br>
+            <small>Benutzername:</small> <code>Berta</code><br>
+            <small>Passwort:</small> <code>Sonne2024</code><br>
+            <button type="button" onclick="quickLogin('reader')" style="margin-top: 0.5rem; padding: 0.25rem 0.5rem; background: #764ba2; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 0.8rem;">
+              Schnell-Login
+            </button>
           </div>
         </div>
       </div>
@@ -93,35 +99,58 @@
     </div>
   </div>
 
-  <!-- Quick Login Buttons -->
+  <!-- Connection Status -->
   <div style="max-width: 500px; margin: 2rem auto 0;">
     <div class="card" style="padding: 1rem;">
       <h4 style="text-align: center; margin-bottom: 1rem; color: #667eea;">
-        <i class="fas fa-zap"></i> Schnell-Anmeldung
+        <i class="fas fa-server"></i> Backend-Verbindung
       </h4>
-      <div style="display: flex; gap: 1rem; justify-content: center;">
-        <button onclick="quickLogin('admin')" class="btn" style="background: linear-gradient(45deg, #28a745, #20c997); flex: 1;">
-          <i class="fas fa-user-shield"></i> Als Admin
-        </button>
-        <button onclick="quickLogin('user')" class="btn" style="background: linear-gradient(45deg, #17a2b8, #6f42c1); flex: 1;">
-          <i class="fas fa-user"></i> Als User
-        </button>
+      <div id="connectionStatus" style="text-align: center;">
+        <span style="color: #ffc107;"><i class="fas fa-spinner fa-spin"></i> Verbindung wird getestet...</span>
       </div>
     </div>
   </div>
 </div>
 
 <footer>
-  <p>&copy; 2025 BlogAPI - Entwickelt für LB1 Projekt</p>
+  <p>&copy; 2025 BlogAPI - Entwickelt für LB2 Projekt</p>
 </footer>
 
 <script src="script.js"></script>
 <script>
-  // Check login status on page load
+  // Check login status and backend connection on page load
   document.addEventListener('DOMContentLoaded', function() {
     checkLoginStatus();
     setupLoginFormHandlers();
+    testBackendConnection();
   });
+
+  async function testBackendConnection() {
+    const statusElement = document.getElementById('connectionStatus');
+
+    try {
+      const response = await fetch('http://localhost:8080/posts', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        statusElement.innerHTML = '<span style="color: #28a745;"><i class="fas fa-check-circle"></i> Backend erreichbar</span>';
+      } else {
+        statusElement.innerHTML = '<span style="color: #ffc107;"><i class="fas fa-exclamation-triangle"></i> Backend antwortet mit Fehler (' + response.status + ')</span>';
+      }
+    } catch (error) {
+      console.error('Backend connection test failed:', error);
+      statusElement.innerHTML = `
+        <span style="color: #dc3545;"><i class="fas fa-times-circle"></i> Backend nicht erreichbar</span>
+        <div style="font-size: 0.8rem; margin-top: 0.5rem; color: #666;">
+          Stellen Sie sicher, dass das Backend auf http://localhost:8080 läuft
+        </div>
+      `;
+    }
+  }
 
   function setupLoginFormHandlers() {
     // Enter key support
@@ -143,7 +172,7 @@
                         </h4>
                         <p style="margin: 0;">
                             Benutzer: <strong>${escapeHtml(currentUser.username)}</strong><br>
-                            Rolle: <strong>${currentUser.role === 'admin' ? 'Administrator' : 'Benutzer'}</strong>
+                            Rolle: <strong>${currentUser.role === 'admin' ? 'Administrator' : currentUser.role === 'reader' ? 'Reader' : 'Benutzer'}</strong>
                         </p>
                         <button onclick="handleLogout()" class="btn" style="margin-top: 1rem; background: linear-gradient(45deg, #dc3545, #e74c3c);">
                             <i class="fas fa-sign-out-alt"></i> Abmelden
@@ -174,23 +203,25 @@
   function quickLogin(type) {
     if (type === 'admin') {
       document.getElementById('username').value = 'Max15';
-      document.getElementById('password').value = '12334';
-    } else {
-      document.getElementById('username').value = 'User1';
-      document.getElementById('password').value = 'pass123';
+      document.getElementById('password').value = 'Stern3849';
+    } else if (type === 'reader') {
+      document.getElementById('username').value = 'Berta';
+      document.getElementById('password').value = 'Sonne2024';
     }
 
     // Trigger form validation and submission
     document.getElementById('loginForm').dispatchEvent(new Event('submit'));
   }
 
-  function handleLogin(event) {
+  async function handleLogin(event) {
     event.preventDefault();
 
     const form = event.target;
     const username = form.username.value.trim();
     const password = form.password.value.trim();
     const loginButton = document.getElementById('loginButton');
+
+    console.log('Login attempt:', { username, password: '***' });
 
     // Show loading state
     loginButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Anmelden...';
@@ -219,71 +250,93 @@
       hideError('passwordError');
     }
 
-    // Simulate network delay
-    setTimeout(() => {
-      if (isValid) {
-        // Simulierte Benutzer-Authentifizierung
-        if (username === 'Max15' && password === '12334') {
-          currentUser = { id: 1, username: 'Max15', role: 'admin' };
-          showSuccessMessage('Erfolgreich als Administrator angemeldet!');
-          updateNavigationForLogin();
+    if (!isValid) {
+      loginButton.innerHTML = '<i class="fas fa-sign-in-alt"></i> Anmelden';
+      loginButton.disabled = false;
+      return;
+    }
+
+    try {
+      // API-Aufruf zum Backend
+      const response = await fetch('http://localhost:8080/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ username, password })
+      });
+
+      console.log('Login response:', response.status, response.statusText);
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Login erfolgreich:', data);
+
+        // Speichere Token
+        authToken = data.token;
+        localStorage.setItem('jwtToken', authToken);
+
+        // Hole Benutzerinformationen
+        const userResponse = await fetch('http://localhost:8080/me', {
+          headers: {
+            'Authorization': `Bearer ${authToken}`
+          }
+        });
+
+        if (userResponse.ok) {
+          const userData = await userResponse.json();
+          console.log('User data:', userData);
+
+          currentUser = {
+            username: userData.username,
+            role: userData.roles.includes('ROLE_ADMIN') ? 'admin' :
+                    userData.roles.includes('ROLE_READER') ? 'reader' : 'user',
+            roles: userData.roles
+          };
+
+          showSuccessMessage('Erfolgreich angemeldet!');
+          checkLoginStatus(); // Update UI
 
           setTimeout(() => {
             window.location.href = 'posts.html';
           }, 1500);
-
-        } else if (username === 'User1' && password === 'pass123') {
-          currentUser = { id: 2, username: 'User1', role: 'user' };
-          showSuccessMessage('Erfolgreich als Benutzer angemeldet!');
-          updateNavigationForLogin();
-
-          setTimeout(() => {
-            window.location.href = 'posts.html';
-          }, 1500);
-
         } else {
-          showError('passwordError', 'Ungültige Anmeldedaten. Bitte überprüfen Sie Benutzername und Passwort.');
-
-          // Reset button
-          loginButton.innerHTML = '<i class="fas fa-sign-in-alt"></i> Anmelden';
-          loginButton.disabled = false;
-
-          // Shake animation for error
-          form.style.animation = 'shake 0.5s';
-          setTimeout(() => {
-            form.style.animation = '';
-          }, 500);
+          throw new Error('Benutzerinformationen konnten nicht geladen werden');
         }
+
       } else {
-        // Reset button
-        loginButton.innerHTML = '<i class="fas fa-sign-in-alt"></i> Anmelden';
-        loginButton.disabled = false;
+        const errorData = await response.json().catch(() => ({ error: 'Unbekannter Fehler' }));
+        console.error('Login fehler:', errorData);
+        showError('passwordError', 'Ungültige Anmeldedaten. Bitte überprüfen Sie Benutzername und Passwort.');
+
+        // Shake animation for error
+        form.style.animation = 'shake 0.5s';
+        setTimeout(() => {
+          form.style.animation = '';
+        }, 500);
       }
-    }, 500);
+
+    } catch (error) {
+      console.error('Network/connection error:', error);
+      showError('passwordError', 'Verbindungsfehler. Ist das Backend erreichbar?');
+    }
+
+    // Reset button
+    loginButton.innerHTML = '<i class="fas fa-sign-in-alt"></i> Anmelden';
+    loginButton.disabled = false;
   }
 
   function handleLogout() {
     if (confirm('Möchten Sie sich wirklich abmelden?')) {
+      authToken = null;
       currentUser = null;
+      localStorage.removeItem('jwtToken');
+
       showSuccessMessage('Sie wurden erfolgreich abgemeldet!');
 
       setTimeout(() => {
         window.location.href = 'index.html';
       }, 1500);
-    }
-  }
-
-  function updateNavigationForLogin() {
-    const nav = document.querySelector('.nav-links');
-    if (nav && currentUser) {
-      nav.innerHTML = `
-                    <li><a href="index.html">Startseite</a></li>
-                    <li><a href="posts.html">Alle Posts</a></li>
-                    <li><a href="create.html">Post erstellen</a></li>
-                    <li><a href="login.html" style="background: #28a745; color: white; border-radius: 20px;">
-                        <i class="fas fa-user"></i> ${escapeHtml(currentUser.username)}
-                    </a></li>
-                `;
     }
   }
 

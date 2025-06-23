@@ -28,87 +28,457 @@
     <p>Teilen Sie Ihre Gedanken und Ideen mit der Welt</p>
   </section>
 
-  <div class="card" style="max-width: 800px; margin: 0 auto;">
-    <form id="createPostForm" onsubmit="handleCreatePost(event)">
-      <div class="form-field">
-        <label for="title">
-          Titel <span style="color: red;">*</span>
-        </label>
-        <input
-                type="text"
-                id="title"
-                name="title"
-                required
-                maxlength="255"
-                placeholder="Geben Sie einen aussagekräftigen Titel ein"
-        >
-        <div id="titleError" class="error-message"></div>
-      </div>
-
-      <div class="form-field">
-        <label for="content">
-          Inhalt <span style="color: red;">*</span>
-        </label>
-        <textarea
-                id="content"
-                name="content"
-                required
-                rows="10"
-                maxlength="5000"
-                placeholder="Schreiben Sie hier Ihren Artikel (mindestens 10 Zeichen, maximal 5000 Zeichen)"
-        ></textarea>
-        <div class="char-counter">
-          <span id="contentCounter">0</span>/5000 Zeichen
-        </div>
-        <div id="contentError" class="error-message"></div>
-      </div>
-
-      <div class="form-field">
-        <label for="image">
-          Bild (optional)
-        </label>
-        <input
-                type="file"
-                id="image"
-                name="image"
-                accept="image/jpeg,image/jpg,image/png"
-        >
-        <div style="color: #666; font-size: 0.9rem; margin-top: 0.25rem;">
-          Erlaubte Formate: JPEG, PNG | Maximale Größe: 5MB
-        </div>
-        <div id="imageError" class="error-message"></div>
-
-        <!-- Image Preview -->
-        <div id="imagePreview" style="display: none; margin-top: 1rem;">
-          <img id="previewImg" style="max-width: 200px; height: auto; border-radius: 5px;" alt="Vorschau">
-          <button type="button" onclick="removeImage()" style="display: block; margin-top: 0.5rem; background: #dc3545; color: white; border: none; padding: 0.25rem 0.5rem; border-radius: 3px; cursor: pointer;">
-            <i class="fas fa-times"></i> Bild entfernen
-          </button>
-        </div>
-      </div>
-
-      <div style="text-align: center;">
-        <button type="submit" class="btn" style="margin-right: 1rem;">
-          <i class="fas fa-save"></i> Post erstellen
-        </button>
-        <a href="posts.html" class="btn" style="background: linear-gradient(45deg, #6c757d, #5a6268);">
-          <i class="fas fa-times"></i> Abbrechen
-        </a>
-      </div>
-    </form>
+  <div id="create-content">
+    <!-- Content wird hier geladen -->
   </div>
 </div>
 
 <footer>
-  <p>&copy; 2025 BlogAPI - Entwickelt für LB1 Projekt</p>
+  <p>&copy; 2025 BlogAPI - Entwickelt für LB2 Projekt</p>
 </footer>
 
 <script src="script.js"></script>
 <script>
-  // Setup form handlers beim Laden der Seite
   document.addEventListener('DOMContentLoaded', function() {
-    setupCreateFormHandlers();
+    checkAuthAndLoadCreateForm();
   });
+
+  async function checkAuthAndLoadCreateForm() {
+    // Prüfe Token falls vorhanden
+    if (authToken) {
+      await checkAuthStatus();
+    }
+
+    // Prüfe ob Benutzer berechtigt ist
+    if (!currentUser) {
+      showAccessDenied('Sie müssen angemeldet sein, um Posts zu erstellen.');
+      return;
+    }
+
+    if (currentUser.role !== 'admin') {
+      showAccessDenied('Sie benötigen Administrator-Rechte, um Posts zu erstellen.');
+      return;
+    }
+
+    // Zeige Create-Form
+    showCreateForm();
+  }
+
+  function showAccessDenied(message) {
+    document.getElementById('create-content').innerHTML = `
+      <div class="card" style="max-width: 600px; margin: 0 auto; text-align: center; padding: 3rem;">
+        <i class="fas fa-lock" style="font-size: 3rem; color: #dc3545; margin-bottom: 1rem;"></i>
+        <h2 style="color: #dc3545; margin-bottom: 1rem;">Zugriff verweigert</h2>
+        <p style="margin-bottom: 2rem; color: #666;">${message}</p>
+        <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+          <a href="login.html" class="btn">
+            <i class="fas fa-sign-in-alt"></i> Anmelden
+          </a>
+          <a href="posts.html" class="btn" style="background: linear-gradient(45deg, #6c757d, #5a6268);">
+            <i class="fas fa-arrow-left"></i> Zurück
+          </a>
+        </div>
+      </div>
+    `;
+  }
+
+  function showCreateForm() {
+    document.getElementById('create-content').innerHTML = `
+      <div class="card" style="max-width: 800px; margin: 0 auto;">
+        <div style="margin-bottom: 2rem; padding: 1rem; background: rgba(40, 167, 69, 0.1); border-radius: 10px; border-left: 4px solid #28a745;">
+          <h3 style="margin: 0 0 0.5rem 0; color: #28a745;">
+            <i class="fas fa-user-check"></i> Berechtigt als Administrator
+          </h3>
+          <p style="margin: 0; color: #666;">
+            Angemeldet als: <strong>${currentUser.username}</strong> | Rolle: <strong>Administrator</strong>
+          </p>
+        </div>
+
+        <form id="createPostForm" onsubmit="handleCreatePost(event)">
+          <div class="form-field">
+            <label for="title">
+              Titel <span style="color: red;">*</span>
+            </label>
+            <input
+              type="text"
+              id="title"
+              name="title"
+              required
+              maxlength="255"
+              placeholder="Geben Sie einen aussagekräftigen Titel ein"
+            >
+            <div style="color: #666; font-size: 0.9rem; margin-top: 0.25rem;">
+              <span id="titleCounter">0</span>/255 Zeichen
+            </div>
+            <div id="titleError" class="error-message"></div>
+          </div>
+
+          <div class="form-field">
+            <label for="content">
+              Inhalt <span style="color: red;">*</span>
+            </label>
+            <textarea
+              id="content"
+              name="content"
+              required
+              rows="12"
+              maxlength="5000"
+              placeholder="Schreiben Sie hier Ihren Artikel (mindestens 10 Zeichen, maximal 5000 Zeichen)"
+            ></textarea>
+            <div class="char-counter">
+              <span id="contentCounter">0</span>/5000 Zeichen
+              <span id="wordsCounter" style="margin-left: 1rem;">0 Wörter</span>
+            </div>
+            <div id="contentError" class="error-message"></div>
+          </div>
+
+          <div class="form-field">
+            <label for="image">
+              Bild (optional)
+            </label>
+            <input
+              type="file"
+              id="image"
+              name="image"
+              accept="image/jpeg,image/jpg,image/png"
+            >
+            <div style="color: #666; font-size: 0.9rem; margin-top: 0.25rem;">
+              Erlaubte Formate: JPEG, PNG | Maximale Größe: 5MB
+            </div>
+            <div id="imageError" class="error-message"></div>
+
+            <!-- Image Preview -->
+            <div id="imagePreview" style="display: none; margin-top: 1rem;">
+              <h5 style="color: #28a745; margin-bottom: 0.5rem;">
+                <i class="fas fa-image"></i> Bild-Vorschau
+              </h5>
+              <img id="previewImg" style="max-width: 300px; height: auto; border-radius: 8px; border: 2px solid #28a745;" alt="Vorschau">
+              <button type="button" onclick="removeImage()" style="display: block; margin-top: 0.5rem; background: #dc3545; color: white; border: none; padding: 0.5rem 1rem; border-radius: 5px; cursor: pointer;">
+                <i class="fas fa-times"></i> Bild entfernen
+              </button>
+            </div>
+          </div>
+
+          <div style="background: #e7f3ff; border: 1px solid #b3d9ff; border-radius: 8px; padding: 1rem; margin: 2rem 0;">
+            <h5 style="color: #1976D2; margin: 0 0 0.5rem 0;">
+              <i class="fas fa-info-circle"></i> Hinweise zum Erstellen
+            </h5>
+            <ul style="margin: 0; padding-left: 1.5rem; color: #1976D2; font-size: 0.9rem;">
+              <li>Titel und Inhalt sind Pflichtfelder</li>
+              <li>Bilder werden automatisch hochgeladen und mit dem Post verknüpft</li>
+              <li>Der Post ist nach dem Erstellen sofort für alle Benutzer sichtbar</li>
+              <li>Sie können den Post später bearbeiten oder löschen</li>
+            </ul>
+          </div>
+
+          <div style="text-align: center; display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
+            <button type="submit" class="btn" id="createButton" style="min-width: 150px;">
+              <i class="fas fa-save"></i> Post erstellen
+            </button>
+            <button type="button" onclick="previewPost()" class="btn" style="background: linear-gradient(45deg, #17a2b8, #6f42c1); min-width: 150px;">
+              <i class="fas fa-eye"></i> Vorschau
+            </button>
+            <a href="posts.html" class="btn" style="background: linear-gradient(45deg, #6c757d, #5a6268); min-width: 150px;">
+              <i class="fas fa-times"></i> Abbrechen
+            </a>
+          </div>
+        </form>
+      </div>
+    `;
+
+    setupCreateFormHandlers();
+  }
+
+  function setupCreateFormHandlers() {
+    // Title counter
+    const titleField = document.getElementById('title');
+    if (titleField) {
+      titleField.addEventListener('input', function() {
+        const counter = document.getElementById('titleCounter');
+        if (counter) {
+          counter.textContent = this.value.length;
+          if (this.value.length > 230) {
+            counter.style.color = '#dc3545';
+          } else if (this.value.length > 200) {
+            counter.style.color = '#ffc107';
+          } else {
+            counter.style.color = '#666';
+          }
+        }
+      });
+    }
+
+    // Content counter and word count
+    const contentField = document.getElementById('content');
+    if (contentField) {
+      contentField.addEventListener('input', function() {
+        const counter = document.getElementById('contentCounter');
+        const wordsCounter = document.getElementById('wordsCounter');
+
+        if (counter) {
+          counter.textContent = this.value.length;
+          if (this.value.length > 4500) {
+            counter.style.color = '#dc3545';
+          } else if (this.value.length > 4000) {
+            counter.style.color = '#ffc107';
+          } else {
+            counter.style.color = '#666';
+          }
+        }
+
+        if (wordsCounter) {
+          const wordCount = countWords(this.value);
+          wordsCounter.textContent = wordCount + ' Wörter';
+        }
+      });
+    }
+
+    // Image preview
+    const imageField = document.getElementById('image');
+    if (imageField) {
+      imageField.addEventListener('change', function() {
+        handleImagePreview(this);
+      });
+    }
+  }
+
+  function handleImagePreview(input) {
+    const file = input.files[0];
+    const preview = document.getElementById('imagePreview');
+    const previewImg = document.getElementById('previewImg');
+
+    if (file) {
+      // Validierung
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+      const maxSize = 5 * 1024 * 1024; // 5MB
+
+      if (!allowedTypes.includes(file.type)) {
+        showError('imageError', 'Nur JPEG und PNG Dateien sind erlaubt');
+        input.value = '';
+        preview.style.display = 'none';
+        return;
+      }
+
+      if (file.size > maxSize) {
+        showError('imageError', 'Datei ist zu groß (max. 5MB)');
+        input.value = '';
+        preview.style.display = 'none';
+        return;
+      }
+
+      hideError('imageError');
+
+      // Preview anzeigen
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        previewImg.src = e.target.result;
+        preview.style.display = 'block';
+      };
+      reader.readAsDataURL(file);
+    } else {
+      preview.style.display = 'none';
+    }
+  }
+
+  function removeImage() {
+    const imageField = document.getElementById('image');
+    const preview = document.getElementById('imagePreview');
+
+    imageField.value = '';
+    preview.style.display = 'none';
+    hideError('imageError');
+  }
+
+  function previewPost() {
+    const title = document.getElementById('title').value.trim();
+    const content = document.getElementById('content').value.trim();
+
+    if (!title || !content) {
+      alert('Bitte füllen Sie Titel und Inhalt aus, um eine Vorschau zu sehen.');
+      return;
+    }
+
+    // Open preview in new window
+    const previewWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes');
+    previewWindow.document.write(`
+      <!DOCTYPE html>
+      <html lang="de">
+      <head>
+        <meta charset="UTF-8">
+        <title>Vorschau: ${escapeHtml(title)}</title>
+        <link rel="stylesheet" href="styles.css">
+        <style>
+          body { padding: 2rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+          .preview-container { max-width: 800px; margin: 0 auto; }
+        </style>
+      </head>
+      <body>
+        <div class="preview-container">
+          <div class="card">
+            <h1 style="color: #667eea; margin-bottom: 1rem;">${escapeHtml(title)}</h1>
+            <div style="line-height: 1.8; font-size: 1.1rem; margin-bottom: 2rem;">
+              ${formatPostContent(content)}
+            </div>
+            <div style="border-top: 1px solid #eee; padding-top: 1rem; color: #666; font-size: 0.9rem;">
+              <strong>Vorschau-Statistiken:</strong><br>
+              Zeichen: ${content.length} | Wörter: ${countWords(content)} | Geschätzte Lesezeit: ~${Math.ceil(countWords(content) / 200)} Min
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `);
+    previewWindow.document.close();
+  }
+
+  async function handleCreatePost(event) {
+    event.preventDefault();
+
+    const form = event.target;
+    const title = form.title.value.trim();
+    const content = form.content.value.trim();
+    const imageFile = form.image.files[0];
+    const createButton = document.getElementById('createButton');
+
+    console.log('Erstelle Post:', { title, content: content.substring(0, 50) + '...', hasImage: !!imageFile });
+
+    // Show loading state
+    createButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Erstellen...';
+    createButton.disabled = true;
+
+    // Validierung
+    let isValid = true;
+
+    // Titel validieren
+    if (!title) {
+      showError('titleError', 'Titel ist ein Pflichtfeld');
+      isValid = false;
+    } else if (title.length < 3) {
+      showError('titleError', 'Titel muss mindestens 3 Zeichen haben');
+      isValid = false;
+    } else if (title.length > 255) {
+      showError('titleError', 'Titel darf maximal 255 Zeichen haben');
+      isValid = false;
+    } else {
+      hideError('titleError');
+    }
+
+    // Content validieren
+    if (!content) {
+      showError('contentError', 'Inhalt ist ein Pflichtfeld');
+      isValid = false;
+    } else if (content.length < 10) {
+      showError('contentError', 'Inhalt muss mindestens 10 Zeichen haben');
+      isValid = false;
+    } else if (content.length > 5000) {
+      showError('contentError', 'Inhalt darf maximal 5000 Zeichen haben');
+      isValid = false;
+    } else {
+      hideError('contentError');
+    }
+
+    // Bild validieren (wenn vorhanden)
+    if (imageFile) {
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+      const maxSize = 5 * 1024 * 1024; // 5MB
+
+      if (!allowedTypes.includes(imageFile.type)) {
+        showError('imageError', 'Nur JPEG und PNG Dateien sind erlaubt');
+        isValid = false;
+      } else if (imageFile.size > maxSize) {
+        showError('imageError', 'Datei ist zu groß (max. 5MB)');
+        isValid = false;
+      } else {
+        hideError('imageError');
+      }
+    }
+
+    if (!isValid) {
+      createButton.innerHTML = '<i class="fas fa-save"></i> Post erstellen';
+      createButton.disabled = false;
+      return;
+    }
+
+    try {
+      let imagePath = null;
+
+      // Bild hochladen wenn vorhanden
+      if (imageFile) {
+        console.log('Lade Bild hoch...');
+        const formData = new FormData();
+        formData.append('file', imageFile);
+
+        const uploadResponse = await fetch('http://localhost:8080/upload', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${authToken}`
+          },
+          body: formData
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error('Bild-Upload fehlgeschlagen');
+        }
+
+        imagePath = await uploadResponse.text();
+        imagePath = imagePath.replace(/"/g, ''); // Entferne Anführungszeichen
+        console.log('Bild hochgeladen:', imagePath);
+      }
+
+      // Post erstellen
+      const postData = {
+        title,
+        content,
+        imagePath
+      };
+
+      console.log('Sende Post data:', postData);
+      const response = await fetch('http://localhost:8080/posts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify(postData)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Post erstellen fehlgeschlagen: ${errorText}`);
+      }
+
+      const newPost = await response.json();
+      console.log('Post erstellt:', newPost);
+
+      showSuccessMessage('Post wurde erfolgreich erstellt!');
+
+      setTimeout(() => {
+        window.location.href = 'posts.html';
+      }, 1500);
+
+    } catch (error) {
+      console.error('Fehler beim Erstellen:', error);
+      showError('titleError', `Fehler beim Erstellen des Posts: ${error.message}`);
+
+      // Reset button
+      createButton.innerHTML = '<i class="fas fa-save"></i> Post erstellen';
+      createButton.disabled = false;
+    }
+  }
+
+  // Helper functions
+  function formatPostContent(content) {
+    return escapeHtml(content)
+            .split('\n\n')
+            .map(paragraph => paragraph.trim())
+            .filter(paragraph => paragraph.length > 0)
+            .map(paragraph => `<p style="margin-bottom: 1.5rem;">${paragraph.replace(/\n/g, '<br>')}</p>`)
+            .join('');
+  }
+
+  function countWords(text) {
+    return text.trim().split(/\s+/).filter(word => word.length > 0).length;
+  }
 </script>
 </body>
 </html>
